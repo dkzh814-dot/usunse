@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "src/app/api/webhook/route.ts": {
+      "maxDuration": 10
+    },
+    "src/app/api/analyze/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
