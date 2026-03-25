@@ -1,10 +1,16 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { getRepelResult, RepelResult } from "@/lib/repel";
+import { Suspense, useEffect, useState } from "react";
+import { getRepelResult, getRepelCopy, RepelResult } from "@/lib/repel";
 import EmailGate from "@/components/EmailGate";
 import RepelShareModal from "@/components/RepelShareModal";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+
+function safeDocId(email: string, dob: string, test: string): string {
+  return `${email.replace(/[^a-zA-Z0-9]/g, "_")}_${dob}_${test}`;
+}
 
 function RepelResultContent() {
   const searchParams = useSearchParams();
@@ -14,10 +20,7 @@ function RepelResultContent() {
   const [unlocked, setUnlocked] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [result, setResult] = useState<RepelResult | null>(null);
-  const [streamedText, setStreamedText] = useState("");
-  const [streaming, setStreaming] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const streamStarted = useRef(false);
 
   useEffect(() => {
     if (!dob) return;
@@ -25,36 +28,22 @@ function RepelResultContent() {
     setResult(getRepelResult(y, m, d));
   }, [dob]);
 
-  useEffect(() => {
-    if (!unlocked || !result || streamStarted.current) return;
-    streamStarted.current = true;
-
-    async function fetchCopy() {
-      setStreaming(true);
-      try {
-        const res = await fetch("/api/repel", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ typeName: result!.repelType.name, tagline: result!.repelType.tagline }),
+  async function handleUnlock(email: string) {
+    setUserEmail(email);
+    try {
+      const docRef = doc(db, "completions", safeDocId(email, dob, "repel-test"));
+      const snap = await getDoc(docRef);
+      if (!snap.exists() && result) {
+        await setDoc(docRef, {
+          email, dob, test: "repel-test",
+          result: result.repelType.name,
+          createdAt: serverTimestamp(),
         });
-        if (!res.ok) throw new Error("Failed");
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error("No reader");
-        const decoder = new TextDecoder();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          setStreamedText(prev => prev + decoder.decode(value, { stream: true }));
-        }
-      } catch {
-        setStreamedText("The pattern runs deeper than most want to admit.");
-      } finally {
-        setStreaming(false);
       }
-    }
-
-    fetchCopy();
-  }, [unlocked, result]);
+    } catch { /* don't block */ }
+    setUnlocked(true);
+    window.scrollTo(0, 0);
+  }
 
   if (!dob || !result) {
     return (
@@ -66,12 +55,11 @@ function RepelResultContent() {
     );
   }
 
+  const copy = getRepelCopy(result.key);
   const resultUrl = typeof window !== "undefined"
     ? `${window.location.origin}/repel-result?${new URLSearchParams({ name, dob }).toString()}`
     : "";
-
   const shareText = `my UsUnse reading: I attract ${result.repelType.name} types\n'${result.repelType.tagline}'\nusunse.com/repel-test`;
-
   const spParams = { name, dob };
 
   return (
@@ -82,7 +70,7 @@ function RepelResultContent() {
       {/* Email gate */}
       {!unlocked && (
         <EmailGate
-          onUnlock={(email) => { setUnlocked(true); setUserEmail(email); window.scrollTo(0, 0); }}
+          onUnlock={handleUnlock}
           idolName={result.repelType.name}
           name={name}
           dob={dob}
@@ -123,21 +111,10 @@ function RepelResultContent() {
           {/* Divider */}
           <div className="w-12 h-px bg-accent/30 my-1" />
 
-          {/* Streaming copy */}
-          <div className="min-h-[60px]">
-            {!unlocked || (!streamedText && streaming) ? (
-              <div className="space-y-2 w-full">
-                {[80, 95, 70].map((w, i) => (
-                  <div key={i} className="shimmer h-3.5 rounded-full mx-auto" style={{ width: `${w}%` }} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-text/85 leading-relaxed font-display italic">
-                &ldquo;{streamedText}&rdquo;
-                {streaming && <span className="inline-block w-0.5 h-4 bg-accent animate-pulse ml-0.5 align-text-bottom" />}
-              </p>
-            )}
-          </div>
+          {/* Static copy */}
+          <p className="text-sm text-text/85 leading-relaxed font-display italic">
+            &ldquo;{copy}&rdquo;
+          </p>
 
           {/* Tagline */}
           <p className="text-sm italic text-muted/60 mt-1">{result.repelType.tagline}</p>

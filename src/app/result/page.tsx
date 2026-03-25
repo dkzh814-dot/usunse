@@ -8,6 +8,8 @@ import FourPillarsDisplay from "@/components/FourPillarsDisplay";
 import EmailGate from "@/components/EmailGate";
 import TierCards from "@/components/TierCards";
 import ShareModal from "@/components/ShareModal";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 function getCompatibilityDescription(score: number, idolName: string, userName: string): string {
   if (score >= 85) {
@@ -33,6 +35,27 @@ function ResultContent() {
   const [match, setMatch] = useState<IdolMatch | null>(null);
   const [shareText, setShareText] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
+
+  function safeDocId(email: string) {
+    return `${email.replace(/[^a-zA-Z0-9]/g, "_")}_${dob}_destiny-test`;
+  }
+
+  async function handleUnlock(email: string) {
+    setUserEmail(email);
+    try {
+      const docRef = doc(db, "completions", safeDocId(email));
+      const snap = await getDoc(docRef);
+      if (!snap.exists() && match) {
+        await setDoc(docRef, {
+          email, dob, test: "destiny-test",
+          result: match.idol.name,
+          createdAt: serverTimestamp(),
+        });
+      }
+    } catch { /* don't block */ }
+    setUnlocked(true);
+    window.scrollTo(0, 0);
+  }
 
   useEffect(() => {
     if (!dob) return;
@@ -69,7 +92,7 @@ function ResultContent() {
       {/* Email gate overlay */}
       {!unlocked && (
         <EmailGate
-          onUnlock={(email) => { setUnlocked(true); setUserEmail(email); window.scrollTo(0, 0); }}
+          onUnlock={handleUnlock}
           idolName={match.idol.name}
           name={name}
           dob={dob}
