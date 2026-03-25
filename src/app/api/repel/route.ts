@@ -5,27 +5,42 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
-    const { typeName } = await req.json();
+    const { typeName, tagline } = await req.json();
 
     if (!typeName) {
       return new Response(JSON.stringify({ error: "Missing typeName" }), { status: 400 });
     }
 
-    const systemPrompt = `You are writing short result copy for UsUnse, a Saju-based fortune app for global K-pop fans.
-Voice: magazine column. Warm, a little unsettling, perceptive.
+    const systemPrompt = `You are writing result copy for UsUnse, a Saju-based fortune app for global K-pop fans.
+Voice: magazine column meets therapist who's slightly too perceptive.
+Warm but unsettling. The reader should feel seen in a way that's almost uncomfortable.
 HARD RULE: never use the words Wood, Fire, Earth, Metal, Water, ohaeng, saju,
 element, pillar, stem, branch, or any fortune-telling terminology whatsoever.`;
 
-    const userPrompt = `Write 2-3 sentences for someone whose repel type is ${typeName}.
-This copy explains why they magnetically attract this type of person into their life,
-even when it drains them.
-Be specific and psychological — not vague or generic.
-No bullet points. No headers. Speak directly to the reader as "you".
-Do not mention the type name itself in the copy.`;
+    const userPrompt = `Write exactly 3 sentences for someone whose repel type is ${typeName} — '${tagline ?? ""}'.
+
+Sentence 1: Describe a specific behavior or pattern this person does —
+something concrete and recognizable, not abstract.
+Use 'you' directly. Make it feel like you've been watching them.
+
+Sentence 2: Explain the psychological reason this keeps happening —
+why they keep attracting this dynamic even when they know better.
+Honest, not harsh. Specific, not generic.
+
+Sentence 3: Name what they actually want underneath it —
+reframe the pattern as something that reveals a real need.
+End on something that feels like insight, not damage.
+
+Rules:
+- No fortune-telling words (Wood, Fire, Earth, Metal, Water, ohaeng, element, etc.)
+- No bullet points, no headers
+- Do not mention the type name ${typeName} anywhere in the copy
+- Each sentence should be 15-25 words
+- The reader must finish and think 'how did it know that'`;
 
     const stream = await client.messages.stream({
       model: "claude-sonnet-4-6",
-      max_tokens: 200,
+      max_tokens: 300,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     });

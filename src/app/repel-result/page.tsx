@@ -35,7 +35,7 @@ function RepelResultContent() {
         const res = await fetch("/api/repel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ typeName: result!.repelType.name }),
+          body: JSON.stringify({ typeName: result!.repelType.name, tagline: result!.repelType.tagline }),
         });
         if (!res.ok) throw new Error("Failed");
         const reader = res.body?.getReader();
