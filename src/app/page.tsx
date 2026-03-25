@@ -5,34 +5,35 @@ const freeCards = [
     title: "Which K-pop idol is your destiny?",
     desc: "Find the idol your energy was born to meet",
     href: "/kpop-test",
-    live: true,
+    badge: "free",
   },
   {
     title: "What type do you repel?",
     desc: "Discover the energy pattern behind your toxic relationships",
     href: "/repel-test",
-    live: true,
+    badge: "free",
   },
   {
-    title: "This month's energy keyword",
-    desc: "One word that defines your energy this month",
+    title: "What's your energy color?",
+    desc: "The color your chart radiates — and what it means",
     href: null,
-    live: false,
+    badge: "soon",
   },
   {
-    title: "Your energy type",
-    desc: "See the elemental combination that makes you, you",
+    title: "My Five Elements",
+    desc: "See how many of each element you carry",
     href: null,
-    live: false,
+    badge: "soon",
   },
 ];
 
 const paidCards = [
-  { title: "Are we compatible?", desc: "Enter any birth date — idol, crush, or partner", price: "$1", full: false },
-  { title: "My Five Elements", desc: "See what your chart is made of and what's missing", price: "$1", full: false },
-  { title: "Full Destiny Reading", desc: "Your personality, career, love, and life cycles in full", price: "$10", full: false },
-  { title: "This year's fortune", desc: "What 2026 and 2027 hold for your energy", price: "$10", full: false },
-  { title: "Monthly Energy Report", desc: "Your monthly forecast delivered to your inbox", price: "$5/mo", sub: "mailing subscription", full: true },
+  { title: "Are we compatible?",              desc: "Enter any birth date — idol, crush, or partner",          price: "$1",    sub: null,                  soon: false },
+  { title: "Who were you in a past life?",    desc: "Your past life revealed through your chart",              price: "$1",    sub: null,                  soon: true  },
+  { title: "Full Destiny Reading",            desc: "Your personality, career, love, and life cycles in full", price: "$10",   sub: null,                  soon: false },
+  { title: "This year's fortune",             desc: "What 2026 and 2027 hold for your energy",                 price: "$10",   sub: null,                  soon: false },
+  { title: "한국 이름 짓기 · Korean Name Reading", desc: "A Korean name chosen for your energy and balance",  price: "$10",   sub: null,                  soon: true  },
+  { title: "Monthly Energy Report",           desc: "Your monthly forecast delivered to your inbox",           price: "$5/mo", sub: "mailing subscription", soon: false },
 ];
 
 const marqueeText = "Share your result → Unlock 30% off any $10 reading";
@@ -70,7 +71,7 @@ export default function Home() {
       <main className="relative z-10 flex-1 flex flex-col items-center px-4 py-12">
         <div className="w-full max-w-lg mx-auto flex flex-col gap-10">
 
-          {/* Free test cards — 2×2 grid */}
+          {/* Free tests — 2×2 grid */}
           <section className="flex flex-col gap-3">
             <h2 className="text-xs font-medium tracking-widest text-muted/50 uppercase">Free Tests</h2>
             <div className="grid grid-cols-2 gap-3">
@@ -78,13 +79,13 @@ export default function Home() {
                 <div
                   key={card.title}
                   onClick={card.href ? () => { window.location.href = card.href!; } : undefined}
-                  className={`rounded-xl border p-4 flex flex-col gap-2 min-h-[130px] transition-colors
-                    ${card.live
+                  className={`rounded-xl border p-4 flex flex-col gap-2 h-[138px] transition-colors
+                    ${card.badge === "free"
                       ? "border-accent/30 bg-[#12121a]/80 cursor-pointer hover:border-accent/50"
                       : "border-white/5 bg-[#12121a]/40 cursor-default"
                     }`}
                 >
-                  {card.live ? (
+                  {card.badge === "free" ? (
                     <span className="self-start text-[9px] font-semibold tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full uppercase">
                       Free
                     </span>
@@ -100,25 +101,28 @@ export default function Home() {
                 </div>
               ))}
             </div>
-
           </section>
 
-          {/* Paid products */}
+          {/* Go Deeper — all same size, 2 per row */}
           <section className="flex flex-col gap-3">
             <h2 className="text-xs font-medium tracking-widest text-muted/50 uppercase">Go Deeper</h2>
             <div className="grid grid-cols-2 gap-3">
               {paidCards.map((card) => (
                 <div
                   key={card.title}
-                  className={`relative rounded-xl border border-white/5 bg-[#12121a]/40 backdrop-blur-sm p-4 flex flex-col min-h-[100px] cursor-pointer hover:border-accent/20 transition-colors
-                    ${card.full ? "col-span-2" : ""}`}
+                  className="relative rounded-xl border border-white/5 bg-[#12121a]/40 p-4 flex flex-col h-[138px] cursor-pointer hover:border-accent/20 transition-colors"
                 >
-                  <p className="text-sm font-medium text-text/90">{card.title}</p>
-                  <p className="text-xs text-muted/50 leading-snug mt-0.5">{card.desc}</p>
-                  <div className="flex items-baseline gap-1.5 mt-auto pt-2">
+                  {card.soon && (
+                    <span className="self-start text-[9px] font-medium tracking-wide text-muted/50 bg-white/5 px-2 py-0.5 rounded-full mb-1.5">
+                      Coming Soon
+                    </span>
+                  )}
+                  <p className="text-sm font-medium text-text/90 leading-snug">{card.title}</p>
+                  <p className="text-xs text-muted/50 leading-snug mt-0.5 line-clamp-2">{card.desc}</p>
+                  <div className="flex items-baseline gap-1.5 mt-auto pt-1">
                     <span className="text-base font-bold gradient-text">{card.price}</span>
                     {card.sub && (
-                      <span className="text-xs text-muted/50">{card.sub}</span>
+                      <span className="text-[10px] text-muted/50">{card.sub}</span>
                     )}
                   </div>
                 </div>
