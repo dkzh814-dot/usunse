@@ -4,10 +4,26 @@ import { useState } from "react";
 import BirthForm from "@/components/BirthForm";
 
 const freeCards = [
-  { emoji: "⭐", title: "Which K-pop idol is your destiny?", featured: true },
-  { emoji: "🔥", title: "What type do you repel?", featured: false },
-  { emoji: "✨", title: "This month's energy keyword", featured: false },
-  { emoji: "🌊", title: "Your energy type", featured: false },
+  {
+    title: "Which K-pop idol is your destiny?",
+    desc: "Find the idol your energy was born to meet",
+    featured: true,
+  },
+  {
+    title: "What type do you repel?",
+    desc: "Discover the energy pattern behind your toxic relationships",
+    featured: false,
+  },
+  {
+    title: "This month's energy keyword",
+    desc: "One word that defines your energy this month",
+    featured: false,
+  },
+  {
+    title: "Your energy type",
+    desc: "See the elemental combination that makes you, you",
+    featured: false,
+  },
 ];
 
 const paidCards = [
@@ -18,7 +34,7 @@ const paidCards = [
   { title: "Monthly Energy Report", price: "$5/mo", sub: "mailing subscription", full: true },
 ];
 
-const marqueeText = "✨ Share your result → Unlock 30% off any $10 reading";
+const marqueeText = "Share your result → Unlock 30% off any $10 reading";
 
 export default function Home() {
   const [formOpen, setFormOpen] = useState(false);
@@ -45,7 +61,7 @@ export default function Home() {
         <div className="flex animate-marquee whitespace-nowrap">
           {Array.from({ length: 8 }).map((_, i) => (
             <span key={i} className="mx-10 text-xs tracking-wide text-accent/70">
-              {marqueeText}
+              ✦ {marqueeText}
             </span>
           ))}
         </div>
@@ -63,7 +79,7 @@ export default function Home() {
                 <div
                   key={card.title}
                   onClick={card.featured ? () => setFormOpen((v) => !v) : undefined}
-                  className={`relative rounded-xl border p-4 flex flex-col gap-2 transition-colors
+                  className={`relative rounded-xl border p-4 flex flex-col justify-between min-h-[130px] transition-colors
                     ${card.featured
                       ? "border-accent/30 bg-[#12121a]/80 cursor-pointer hover:border-accent/50"
                       : "border-white/5 bg-[#12121a]/40 cursor-default"
@@ -78,8 +94,10 @@ export default function Home() {
                       Coming Soon
                     </span>
                   )}
-                  <span className="text-xl">{card.emoji}</span>
-                  <p className="text-sm font-medium text-text/80 leading-snug pr-14">{card.title}</p>
+                  <div className="flex flex-col gap-1.5 pr-14">
+                    <p className="text-sm font-medium text-text/80 leading-snug">{card.title}</p>
+                    <p className="text-xs text-muted/50 leading-snug">{card.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -107,7 +125,7 @@ export default function Home() {
               {paidCards.map((card) => (
                 <div
                   key={card.title}
-                  className={`relative rounded-xl border border-white/5 bg-[#12121a]/40 backdrop-blur-sm p-4 flex flex-col gap-1 cursor-pointer hover:border-accent/20 transition-colors
+                  className={`relative rounded-xl border border-white/5 bg-[#12121a]/40 backdrop-blur-sm p-4 flex flex-col justify-between min-h-[80px] cursor-pointer hover:border-accent/20 transition-colors
                     ${card.full ? "col-span-2" : ""}`}
                 >
                   <p className="text-sm font-medium text-text/90">{card.title}</p>
