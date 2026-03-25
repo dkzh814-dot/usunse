@@ -141,6 +141,95 @@ export function drawShareCard(canvas: HTMLCanvasElement, opts: DrawOptions): voi
   ctx.letterSpacing = "0";
 }
 
+// ── Energy color card ─────────────────────────────────────────────────────────
+
+interface EnergyColorDrawOptions {
+  color: string;
+  name: string;
+  firstSentence: string;
+}
+
+export function drawEnergyColorCard(canvas: HTMLCanvasElement, opts: EnergyColorDrawOptions): void {
+  const W = 540;
+  const H = 960;
+  canvas.width = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext("2d")!;
+  const cx = W / 2;
+
+  // Background: flat color
+  ctx.fillStyle = opts.color;
+  ctx.fillRect(0, 0, W, H);
+
+  // Dark overlay for text legibility
+  ctx.fillStyle = "rgba(0,0,0,0.50)";
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle radial glow using the color itself
+  const glow = ctx.createRadialGradient(cx, H * 0.42, 0, cx, H * 0.42, 300);
+  glow.addColorStop(0, `${opts.color}55`);
+  glow.addColorStop(1, `${opts.color}00`);
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Logo
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.font = "900 18px system-ui,-apple-system,sans-serif";
+  ctx.fillText("US", cx, 170);
+  ctx.fillText("NE", cx, 196);
+
+  // Color circle
+  ctx.beginPath();
+  ctx.arc(cx, 390, 88, 0, 2 * Math.PI);
+  ctx.fillStyle = opts.color;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // "Your energy color" label
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "400 13px system-ui,-apple-system,sans-serif";
+  ctx.letterSpacing = "0.13em";
+  ctx.fillText("YOUR ENERGY COLOR", cx, 530);
+  ctx.letterSpacing = "0";
+
+  // Color name
+  ctx.fillStyle = "#ffffff";
+  const nameSize = opts.name.length > 12 ? 42 : 50;
+  ctx.font = `900 ${nameSize}px system-ui,-apple-system,sans-serif`;
+  ctx.fillText(opts.name, cx, 590);
+
+  // Divider
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - 50, 630);
+  ctx.lineTo(cx + 50, 630);
+  ctx.stroke();
+
+  // First sentence
+  ctx.fillStyle = "rgba(255,255,255,0.65)";
+  ctx.font = "italic 400 16px Georgia,serif";
+  const lines = wrapText(ctx, opts.firstSentence, W * 0.72);
+  const lineH = 25;
+  const textY = 668;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, cx, textY + i * lineH);
+  });
+
+  // usunse.com
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.font = "400 12px system-ui,-apple-system,sans-serif";
+  ctx.letterSpacing = "0.15em";
+  ctx.fillText("USUNSE.COM", cx, 828);
+  ctx.letterSpacing = "0";
+}
+
 // ── Repel card ───────────────────────────────────────────────────────────────
 
 interface RepelDrawOptions {
