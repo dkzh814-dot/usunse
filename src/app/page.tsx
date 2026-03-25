@@ -1,8 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import BirthForm from "@/components/BirthForm";
-
 const freeCards = [
   {
     title: "Which K-pop idol is your destiny?",
@@ -37,8 +34,6 @@ const paidCards = [
 const marqueeText = "Share your result → Unlock 30% off any $10 reading";
 
 export default function Home() {
-  const [formOpen, setFormOpen] = useState(false);
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Ambient glow */}
@@ -78,7 +73,7 @@ export default function Home() {
               {freeCards.map((card) => (
                 <div
                   key={card.title}
-                  onClick={card.featured ? () => setFormOpen((v) => !v) : undefined}
+                  onClick={card.featured ? () => { window.location.href = "/kpop-test"; } : undefined}
                   className={`relative rounded-xl border p-4 flex flex-col justify-between min-h-[130px] transition-colors
                     ${card.featured
                       ? "border-accent/30 bg-[#12121a]/80 cursor-pointer hover:border-accent/50"
@@ -102,20 +97,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Expandable form */}
-            {formOpen && (
-              <div className="rounded-xl border border-accent/20 bg-[#12121a]/80 backdrop-blur-sm p-6 flex flex-col gap-5 mt-1">
-                <div className="text-center space-y-1.5">
-                  <h1 className="text-lg font-display font-bold text-text leading-tight">
-                    Which K-pop idol is your destiny?
-                  </h1>
-                  <p className="text-xs text-muted leading-relaxed">
-                    Ancient Korean Saju astrology reveals the person you were born to meet.
-                  </p>
-                </div>
-                <BirthForm />
-              </div>
-            )}
           </section>
 
           {/* Paid products */}

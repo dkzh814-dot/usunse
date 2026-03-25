@@ -69,7 +69,7 @@ function ResultContent() {
       {/* Email gate overlay */}
       {!unlocked && (
         <EmailGate
-          onUnlock={(email) => { setUnlocked(true); setUserEmail(email); }}
+          onUnlock={(email) => { setUnlocked(true); setUserEmail(email); window.scrollTo(0, 0); }}
           idolName={match.idol.name}
           name={name}
           dob={dob}
@@ -99,15 +99,14 @@ function ResultContent() {
           </div>
         </div>
 
-        {/* Match reveal */}
-        <div className="text-center space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted">
-            {name}&apos;s destiny match
-          </p>
-          <h1 className="text-3xl font-display font-bold gradient-text mt-3">
+        {/* Match reveal — pairing layout */}
+        <div className="flex flex-col items-center gap-1 text-center">
+          <span className="text-lg font-semibold text-text/50 tracking-wide">{name}</span>
+          <span className="text-base text-accent/60 leading-none">✦</span>
+          <h1 className="text-4xl font-display font-black gradient-text leading-tight">
             {match.idol.name}
           </h1>
-          <p className="text-muted text-sm">{match.idol.group}</p>
+          <p className="text-sm text-muted/60">{match.idol.group}</p>
         </div>
 
         {/* Score ring */}
