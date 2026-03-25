@@ -22,8 +22,8 @@ const freeCards = [
   {
     title: "My Five Elements",
     desc: "See how many of each element you carry",
-    href: null,
-    badge: "soon",
+    href: "/my-five-elements",
+    badge: "free",
   },
 ];
 

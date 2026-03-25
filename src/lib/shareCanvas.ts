@@ -230,6 +230,131 @@ export function drawEnergyColorCard(canvas: HTMLCanvasElement, opts: EnergyColor
   ctx.letterSpacing = "0";
 }
 
+// ── Five Elements card ────────────────────────────────────────────────────────
+
+interface FiveElementsDrawOptions {
+  name: string;
+  counts: Record<string, number>;
+  dominant: string[];
+  missing: string[];
+}
+
+export function drawFiveElementsCard(canvas: HTMLCanvasElement, opts: FiveElementsDrawOptions): void {
+  const W = 540;
+  const H = 960;
+  canvas.width = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext("2d")!;
+  const cx = W / 2;
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, "#0a0a0f");
+  bgGrad.addColorStop(0.5, "#12121a");
+  bgGrad.addColorStop(1, "#0a0a0f");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Glow
+  const glow = ctx.createRadialGradient(cx, 220, 0, cx, 220, 280);
+  glow.addColorStop(0, "rgba(192,132,252,0.16)");
+  glow.addColorStop(1, "rgba(192,132,252,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H / 2);
+
+  ctx.textBaseline = "middle";
+
+  // Logo
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#c084fc";
+  ctx.font = "900 18px system-ui,-apple-system,sans-serif";
+  ctx.fillText("US", cx, 170);
+  ctx.fillText("NE", cx, 196);
+
+  // Title
+  ctx.fillStyle = "rgba(255,255,255,0.88)";
+  ctx.font = "700 22px system-ui,-apple-system,sans-serif";
+  ctx.fillText("My Five Elements", cx, 285);
+
+  // Name
+  ctx.fillStyle = "rgba(255,255,255,0.42)";
+  ctx.font = "400 15px system-ui,-apple-system,sans-serif";
+  ctx.fillText(opts.name, cx, 316);
+
+  // Bar chart
+  const ROWS = [
+    { key: "wood",  korean: "목", english: "Wood",  color: "#6BCB77" },
+    { key: "fire",  korean: "화", english: "Fire",  color: "#FF6B6B" },
+    { key: "earth", korean: "토", english: "Earth", color: "#D4A96A" },
+    { key: "metal", korean: "금", english: "Metal", color: "#C0C0C0" },
+    { key: "water", korean: "수", english: "Water", color: "#4A90D9" },
+  ];
+
+  const allCounts = ROWS.map(r => opts.counts[r.key] ?? 0);
+  const maxCount = Math.max(...allCounts, 1);
+  const BAR_LEFT = 188;
+  const BAR_MAX  = 210;
+  const BAR_H    = 13;
+  const FIRST_Y  = 425;
+  const ROW_H    = 72;
+
+  for (let i = 0; i < ROWS.length; i++) {
+    const row   = ROWS[i];
+    const count = opts.counts[row.key] ?? 0;
+    const barW  = (count / maxCount) * BAR_MAX;
+    const y     = FIRST_Y + i * ROW_H;
+
+    // Korean char
+    ctx.textAlign = "center";
+    ctx.fillStyle = row.color;
+    ctx.font = "bold 17px system-ui,-apple-system,sans-serif";
+    ctx.fillText(row.korean, 44, y);
+
+    // English name
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(255,255,255,0.50)";
+    ctx.font = "400 13px system-ui,-apple-system,sans-serif";
+    ctx.fillText(row.english, 68, y);
+
+    // Track
+    ctx.fillStyle = "#1e1e2e";
+    ctx.fillRect(BAR_LEFT, y - BAR_H / 2, BAR_MAX, BAR_H);
+
+    // Fill
+    if (barW > 0) {
+      ctx.fillStyle = row.color + "bb";
+      ctx.fillRect(BAR_LEFT, y - BAR_H / 2, barW, BAR_H);
+    }
+
+    // Count
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(255,255,255,0.78)";
+    ctx.font = "bold 15px system-ui,-apple-system,sans-serif";
+    ctx.fillText(String(count), BAR_LEFT + BAR_MAX + 28, y);
+
+    // Badge
+    ctx.textAlign = "left";
+    if (opts.dominant.includes(row.key)) {
+      ctx.fillStyle = "#EAB308";
+      ctx.font = "bold 13px system-ui,-apple-system,sans-serif";
+      ctx.fillText("★", BAR_LEFT + BAR_MAX + 38, y);
+    } else if (opts.missing.includes(row.key)) {
+      ctx.fillStyle = "#EF4444";
+      ctx.font = "bold 13px system-ui,-apple-system,sans-serif";
+      ctx.fillText("✕", BAR_LEFT + BAR_MAX + 38, y);
+    }
+  }
+
+  // usunse.com
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.font = "400 12px system-ui,-apple-system,sans-serif";
+  ctx.letterSpacing = "0.15em";
+  ctx.fillText("USUNSE.COM", cx, 828);
+  ctx.letterSpacing = "0";
+}
+
 // ── Repel card ───────────────────────────────────────────────────────────────
 
 interface RepelDrawOptions {
