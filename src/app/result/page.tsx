@@ -4,7 +4,6 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { getIdolMatch, IdolMatch } from "@/lib/idols";
 import ScoreRing from "@/components/ScoreRing";
-import FourPillarsDisplay from "@/components/FourPillarsDisplay";
 import EmailGate from "@/components/EmailGate";
 import TierCards from "@/components/TierCards";
 import ShareModal from "@/components/ShareModal";
@@ -141,9 +140,6 @@ function ResultContent() {
         <p className="text-sm text-text/90 leading-relaxed text-center font-display italic">
           &ldquo;{description}&rdquo;
         </p>
-
-        {/* Four Pillars */}
-        <FourPillarsDisplay pillars={match.userPillars} label="Your Four Pillars" />
 
         {/* Share My Result button */}
         <button

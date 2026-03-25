@@ -27,7 +27,7 @@ export default function KpopTestPage() {
         </div>
 
         {/* Form */}
-        <BirthForm />
+        <BirthForm showHour={false} />
       </div>
     </main>
   );
