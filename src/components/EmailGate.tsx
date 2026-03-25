@@ -7,9 +7,12 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 interface EmailGateProps {
   onUnlock: (email: string) => void;
   idolName: string;
+  name?: string;
+  dob?: string;
+  hour?: string;
 }
 
-export default function EmailGate({ onUnlock, idolName }: EmailGateProps) {
+export default function EmailGate({ onUnlock, idolName, name, dob, hour }: EmailGateProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -26,8 +29,12 @@ export default function EmailGate({ onUnlock, idolName }: EmailGateProps) {
     setLoading(true);
 
     try {
-      await addDoc(collection(db, "leads"), {
+      await addDoc(collection(db, "users"), {
         email: email.toLowerCase().trim(),
+        name: name || null,
+        dob: dob || null,
+        hour: hour || null,
+        idolName,
         createdAt: serverTimestamp(),
       });
     } catch {

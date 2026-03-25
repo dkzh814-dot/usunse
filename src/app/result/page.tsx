@@ -188,6 +188,9 @@ function ResultContent() {
         <EmailGate
           onUnlock={(email) => { setUnlocked(true); setUserEmail(email); }}
           idolName={match.idol.name}
+          name={name}
+          dob={dob}
+          hour={hourStr ?? undefined}
         />
       )}
 
