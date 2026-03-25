@@ -1,4 +1,4 @@
-import { getYearPillar, getMonthPillar, getDayPillar, getHourPillar, Element } from "./saju";
+import { getYearPillar, getMonthPillar, getDayPillar, getHourPillar, Element, Pillar } from "./saju";
 
 export interface FiveElementsResult {
   counts: Record<Element, number>;
@@ -17,21 +17,31 @@ export const ELEMENT_META: Record<Element, { korean: string; english: string; co
 
 export const ELEMENTS: Element[] = ["wood", "fire", "earth", "metal", "water"];
 
+// Earthly Branch → Element mapping
+const BRANCH_ELEMENT: Record<string, Element> = {
+  "子": "water", "丑": "earth", "寅": "wood",  "卯": "wood",
+  "辰": "earth", "巳": "fire",  "午": "fire",  "未": "earth",
+  "申": "metal", "酉": "metal", "戌": "earth", "亥": "water",
+};
+
+function addPillar(counts: Record<Element, number>, pillar: Pillar) {
+  counts[pillar.element]++;
+  const branchEl = BRANCH_ELEMENT[pillar.earthlyBranch];
+  if (branchEl) counts[branchEl]++;
+}
+
 export function getFiveElementsResult(
   year: number, month: number, day: number, hour?: number
 ): FiveElementsResult {
-  const yearPillar  = getYearPillar(year);
-  const monthPillar = getMonthPillar(year, month);
-  const dayPillar   = getDayPillar(year, month, day);
-
   const counts: Record<Element, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
-  counts[yearPillar.element]++;
-  counts[monthPillar.element]++;
-  counts[dayPillar.element]++;
+
+  addPillar(counts, getYearPillar(year));
+  addPillar(counts, getMonthPillar(year, month));
+  addPillar(counts, getDayPillar(year, month, day));
 
   let usedPillars: 3 | 4 = 3;
   if (hour !== undefined) {
-    counts[getHourPillar(year, month, day, hour).element]++;
+    addPillar(counts, getHourPillar(year, month, day, hour));
     usedPillars = 4;
   }
 

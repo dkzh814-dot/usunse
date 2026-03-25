@@ -148,7 +148,7 @@ function MyFiveElementsContent() {
         </div>
 
         {result.usedPillars === 3 && (
-          <p className="text-xs text-muted/50 text-center">Based on 3 pillars (birth hour not provided)</p>
+          <p className="text-xs text-muted/50 text-center">Based on 3 pillars · 6 elements (birth hour not provided)</p>
         )}
 
         {/* Share button */}
