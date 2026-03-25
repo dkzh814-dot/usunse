@@ -11,13 +11,12 @@ export default function FourPillarsDisplay({
   pillars,
   label,
 }: FourPillarsDisplayProps) {
+  const emptyPillar = { heavenlyStem: "？", earthlyBranch: "？", element: "water" as const, polarity: "yin" as const };
   const columns = [
     { title: "年", pillar: pillars.year, sub: "Year" },
     { title: "月", pillar: pillars.month, sub: "Month" },
     { title: "日", pillar: pillars.day, sub: "Day" },
-    ...(pillars.hour
-      ? [{ title: "時", pillar: pillars.hour, sub: "Hour" }]
-      : []),
+    { title: "時", pillar: pillars.hour ?? emptyPillar, sub: "Hour" },
   ];
 
   return (
