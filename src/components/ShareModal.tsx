@@ -28,116 +28,48 @@ function generateCouponCode(): string {
   return code;
 }
 
-// Build the share card DOM element off-screen at a fixed 540×960px for consistent capture quality
-function buildOffscreenCard(name: string, match: IdolMatch): HTMLElement {
-  const W = 540;
-  const H = 960;
-  const padV = Math.round(H * 0.15);
-  const padH = Math.round(W * 0.1);
-
-  const score = match.score;
-  const r = 56;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - score / 100);
-
-  const wrap = document.createElement("div");
-  wrap.style.cssText = `
-    position:fixed; left:-9999px; top:0; z-index:-1;
-    width:${W}px; height:${H}px; overflow:hidden;
-    background:linear-gradient(160deg,#0a0a0f 0%,#12121a 50%,#0a0a0f 100%);
-    font-family:system-ui,-apple-system,sans-serif;
-  `;
-
-  wrap.innerHTML = `
-    <!-- glow top -->
-    <div style="position:absolute;top:8%;left:50%;transform:translateX(-50%);
-      width:70%;height:30%;background:rgba(192,132,252,0.18);
-      border-radius:50%;filter:blur(60px);"></div>
-    <!-- glow bottom -->
-    <div style="position:absolute;bottom:12%;right:15%;
-      width:45%;height:20%;background:rgba(244,114,182,0.12);
-      border-radius:50%;filter:blur(50px);"></div>
-
-    <!-- content layer -->
-    <div style="position:absolute;inset:0;
-      display:flex;flex-direction:column;align-items:center;justify-content:space-between;
-      padding:${padV}px ${padH}px;">
-
-      <!-- logo -->
-      <div style="display:flex;flex-direction:column;align-items:center;line-height:1;gap:2px;">
-        <span style="font-size:18px;font-weight:900;
-          background:linear-gradient(135deg,#c084fc,#f472b6);
-          -webkit-background-clip:text;-webkit-text-fill-color:transparent;">US</span>
-        <span style="font-size:18px;font-weight:900;
-          background:linear-gradient(135deg,#c084fc,#f472b6);
-          -webkit-background-clip:text;-webkit-text-fill-color:transparent;">NE</span>
-      </div>
-
-      <!-- center: pairing + ring -->
-      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;">
-        <span style="font-size:26px;font-weight:600;color:rgba(255,255,255,0.5);">${name}</span>
-        <span style="font-size:20px;color:rgba(192,132,252,0.65);line-height:1;">✦</span>
-        <span style="font-size:46px;font-weight:900;line-height:1.05;
-          background:linear-gradient(135deg,#c084fc,#f472b6);
-          -webkit-background-clip:text;-webkit-text-fill-color:transparent;">${match.idol.name}</span>
-        <span style="font-size:16px;color:rgba(255,255,255,0.35);margin-bottom:4px;">${match.idol.group}</span>
-
-        <!-- score ring -->
-        <div style="position:relative;width:128px;height:128px;display:flex;align-items:center;justify-content:center;">
-          <svg width="128" height="128" viewBox="0 0 128 128"
-            style="transform:rotate(-90deg);position:absolute;inset:0;">
-            <defs>
-              <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#c084fc"/>
-                <stop offset="100%" stop-color="#f472b6"/>
-              </linearGradient>
-            </defs>
-            <circle cx="64" cy="64" r="${r}" fill="none" stroke="#1e1e2e" stroke-width="10"/>
-            <circle cx="64" cy="64" r="${r}" fill="none" stroke="url(#sg)" stroke-width="10"
-              stroke-linecap="round"
-              stroke-dasharray="${circ.toFixed(2)}"
-              stroke-dashoffset="${offset.toFixed(2)}"/>
-          </svg>
-          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-            <span style="font-size:26px;font-weight:900;line-height:1;
-              background:linear-gradient(135deg,#c084fc,#f472b6);
-              -webkit-background-clip:text;-webkit-text-fill-color:transparent;">${score}%</span>
-            <span style="font-size:10px;color:rgba(255,255,255,0.35);letter-spacing:0.12em;text-transform:uppercase;margin-top:3px;">match</span>
-          </div>
-        </div>
-
-        <p style="font-size:14px;color:rgba(255,255,255,0.4);max-width:75%;line-height:1.6;margin:0;">
-          ${getShortDesc(score)}
-        </p>
-      </div>
-
-      <!-- url -->
-      <p style="font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin:0;">
-        usunse.com
-      </p>
-    </div>
-  `;
-
-  return wrap;
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, data] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)![1];
+  const bytes = atob(data);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
 }
 
-async function captureOffscreen(name: string, match: IdolMatch): Promise<HTMLCanvasElement> {
-  const { default: html2canvas } = await import("html2canvas");
-  const el = buildOffscreenCard(name, match);
-  document.body.appendChild(el);
+// Capture the visible card element using dom-to-image-more (handles CSS gradients correctly)
+async function captureCard(el: HTMLElement): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const domtoimage = (await import("dom-to-image-more")) as any;
+  const scale = 2;
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+
+  // Temporarily remove any backdrop-filter from the element tree to avoid capture artifacts
+  const blurEls: Array<{ el: HTMLElement; val: string }> = [];
+  el.querySelectorAll<HTMLElement>("*").forEach((child) => {
+    const bf = getComputedStyle(child).backdropFilter;
+    if (bf && bf !== "none") {
+      blurEls.push({ el: child, val: child.style.backdropFilter });
+      child.style.backdropFilter = "none";
+    }
+  });
+
   try {
-    const canvas = await html2canvas(el, {
-      scale: 1,
-      width: 540,
-      height: 960,
-      backgroundColor: "#0a0a0f",
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
+    const dataUrl: string = await domtoimage.default.toPng(el, {
+      width: w * scale,
+      height: h * scale,
+      style: {
+        transform: `scale(${scale})`,
+        transformOrigin: "top left",
+      },
+      bgcolor: "#0a0a0f",
+      cacheBust: true,
     });
-    return canvas;
+    return dataUrl;
   } finally {
-    document.body.removeChild(el);
+    // Restore backdrop-filter
+    blurEls.forEach(({ el: child, val }) => { child.style.backdropFilter = val; });
   }
 }
 
@@ -171,62 +103,55 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
 
   // Save as Photo — download only, no coupon
   async function handleSavePhoto() {
+    const el = cardRef.current;
+    if (!el) return;
     setCapturing(true);
     try {
-      const canvas = await captureOffscreen(name, match);
-      const url = canvas.toDataURL("image/png");
+      const dataUrl = await captureCard(el);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = dataUrl;
       a.download = `usunse-${match.idol.name.replace(/\s/g, "-")}.png`;
       a.click();
       showToast("Photo saved!");
+    } catch (err) {
+      console.error("Capture failed:", err);
+      showToast("Capture failed — try again");
     } finally {
       setCapturing(false);
     }
   }
 
-  // Capture + share via Web Share API (mobile) or clipboard (desktop), then show "I shared it!"
+  // SNS share (Instagram / TikTok) — Web Share on mobile, clipboard on desktop
   async function handleSNSShare(platform: "instagram" | "tiktok") {
+    const el = cardRef.current;
+    if (!el) return;
     setCapturing(true);
     try {
-      const canvas = await captureOffscreen(name, match);
+      const dataUrl = await captureCard(el);
+      const blob = dataUrlToBlob(dataUrl);
+      const file = new File([blob], "usunse.png", { type: "image/png" });
       const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+      const label = platform === "instagram" ? "Instagram" : "TikTok";
 
-      if (isMobile) {
-        await new Promise<void>((resolve) => {
-          canvas.toBlob(async (blob) => {
-            if (!blob) { resolve(); return; }
-            const file = new File([blob], "usunse.png", { type: "image/png" });
-            if (navigator.canShare?.({ files: [file] })) {
-              try { await navigator.share({ files: [file], text: shareText }); } catch { /* cancelled */ }
-            } else {
-              // fallback: download
-              const url = canvas.toDataURL("image/png");
-              const a = document.createElement("a");
-              a.href = url; a.download = "usunse.png"; a.click();
-              showToast(`Image saved — open ${platform === "instagram" ? "Instagram" : "TikTok"}!`);
-            }
-            resolve();
-          }, "image/png");
-        });
+      if (isMobile && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], text: shareText });
+        } catch { /* user cancelled */ }
       } else {
-        // Desktop: try clipboard, fallback to download
-        await new Promise<void>((resolve) => {
-          canvas.toBlob(async (blob) => {
-            if (!blob) { resolve(); return; }
-            try {
-              await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-              showToast(`Image copied — paste into ${platform === "instagram" ? "Instagram" : "TikTok"}!`);
-            } catch {
-              const url = canvas.toDataURL("image/png");
-              const a = document.createElement("a");
-              a.href = url; a.download = "usunse.png"; a.click();
-              showToast(`Image saved — share it on ${platform === "instagram" ? "Instagram" : "TikTok"}!`);
-            }
-            resolve();
-          }, "image/png");
-        });
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+          showToast(`Image copied — paste into ${label}!`);
+        } catch {
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          a.download = "usunse.png";
+          a.click();
+          showToast(`Image saved — share it on ${label}!`);
+        }
       }
+    } catch (err) {
+      console.error("Share failed:", err);
+      showToast("Capture failed — try again");
     } finally {
       setCapturing(false);
     }
@@ -257,7 +182,6 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
     WebkitTextFillColor: "transparent",
   };
 
-  // Score ring for preview card (not used in capture — capture uses off-screen element)
   const previewR = 38;
   const previewCirc = 2 * Math.PI * previewR;
   const previewOffset = previewCirc * (1 - match.score / 100);
@@ -268,41 +192,50 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative w-full max-w-xs bg-[#0a0a0f] border border-white/10 rounded-2xl overflow-y-auto max-h-[95vh] flex flex-col">
-        {/* Close */}
         <button onClick={onClose} className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-muted hover:text-text transition-colors text-sm">
           ×
         </button>
 
-        {/* 9:16 preview card (display only — capture uses off-screen element) */}
+        {/* Share card — this exact element is captured by dom-to-image-more */}
         <div
           ref={cardRef}
-          style={{ width: "100%", aspectRatio: "9/16", background: "linear-gradient(160deg,#0a0a0f 0%,#12121a 50%,#0a0a0f 100%)", position: "relative", overflow: "hidden" }}
+          style={{
+            width: "100%",
+            aspectRatio: "9/16",
+            background: "linear-gradient(160deg,#0a0a0f 0%,#12121a 50%,#0a0a0f 100%)",
+            position: "relative",
+            overflow: "hidden",
+            fontFamily: "system-ui,-apple-system,sans-serif",
+          }}
         >
-          <div style={{ position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)", width: "70%", height: "30%", background: "rgba(192,132,252,0.15)", borderRadius: "50%", filter: "blur(40px)" }} />
-          <div style={{ position: "absolute", bottom: "12%", right: "15%", width: "45%", height: "20%", background: "rgba(244,114,182,0.1)", borderRadius: "50%", filter: "blur(30px)" }} />
+          {/* Glows — no backdrop-filter, just regular filter:blur */}
+          <div style={{ position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)", width: "70%", height: "30%", background: "rgba(192,132,252,0.2)", borderRadius: "50%", filter: "blur(50px)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: "12%", right: "15%", width: "45%", height: "20%", background: "rgba(244,114,182,0.12)", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
 
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "15% 8%" }}>
+            {/* US/NE logo */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1, gap: 1 }}>
               <span style={{ fontSize: 12, fontWeight: 900, ...grad }}>US</span>
               <span style={{ fontSize: 12, fontWeight: 900, ...grad }}>NE</span>
             </div>
 
+            {/* Pairing */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
               <span style={{ fontSize: 17, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{name}</span>
               <span style={{ fontSize: 13, color: "rgba(192,132,252,0.6)", lineHeight: 1 }}>✦</span>
               <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, ...grad }}>{match.idol.name}</span>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{match.idol.group}</span>
 
-              {/* Preview ring */}
+              {/* Score ring */}
               <div style={{ position: "relative", width: 84, height: 84, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="84" height="84" viewBox="0 0 84 84" style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}>
                   <defs>
-                    <linearGradient id="prev-ring" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <linearGradient id="modal-ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#c084fc" /><stop offset="100%" stopColor="#f472b6" />
                     </linearGradient>
                   </defs>
                   <circle cx="42" cy="42" r={previewR} fill="none" stroke="#1e1e2e" strokeWidth="7" />
-                  <circle cx="42" cy="42" r={previewR} fill="none" stroke="url(#prev-ring)" strokeWidth="7"
+                  <circle cx="42" cy="42" r={previewR} fill="none" stroke="url(#modal-ring-grad)" strokeWidth="7"
                     strokeLinecap="round" strokeDasharray={previewCirc} strokeDashoffset={previewOffset} />
                 </svg>
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
@@ -318,7 +251,7 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
           </div>
         </div>
 
-        {/* Buttons */}
+        {/* Action buttons */}
         <div className="flex flex-col gap-2 p-4">
           <button onClick={handleSavePhoto} disabled={capturing}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-accent to-accent-2 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity">
@@ -343,7 +276,6 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
             </button>
           </div>
 
-          {/* "I shared it!" — no countdown */}
           {pending === "pending" && (
             <button onClick={issueCoupon}
               className="w-full py-3 rounded-xl border border-accent/40 text-sm font-semibold text-accent hover:bg-accent/10 transition-colors">
@@ -351,7 +283,6 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
             </button>
           )}
 
-          {/* Coupon */}
           {pending === "done" && couponCode && (
             <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 flex flex-col items-center gap-2 text-center">
               <p className="text-[10px] text-muted/70 uppercase tracking-widest">Your 30% off code</p>
