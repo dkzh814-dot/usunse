@@ -41,19 +41,25 @@ export default function BirthForm() {
       return;
     }
 
-    const [y, m, d] = dob.split("-");
+    const parts = dob.split("/");
+    if (parts.length !== 3 || parts.some((p) => p === "")) {
+      setError("Enter date as MM/DD/YYYY.");
+      return;
+    }
+    const [m, d, y] = parts;
     const year = parseInt(y);
     const now = new Date().getFullYear();
-    if (year < 1920 || year > now - 5) {
+    if (isNaN(year) || year < 1920 || year > now - 5) {
       setError("Please enter a valid birth year.");
       return;
     }
+    const isoDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 
     setLoading(true);
 
     const params = new URLSearchParams({
       name: name.trim(),
-      dob,
+      dob: isoDate,
       ...(hour !== "" ? { hour } : {}),
     });
 
@@ -81,11 +87,12 @@ export default function BirthForm() {
           Date of Birth
         </label>
         <input
-          type="date"
+          type="text"
           value={dob}
           onChange={(e) => setDob(e.target.value)}
-          className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text focus:outline-none focus:border-accent transition-colors"
-          max={new Date().toISOString().split("T")[0]}
+          placeholder="MM/DD/YYYY"
+          className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+          maxLength={10}
         />
       </div>
 
