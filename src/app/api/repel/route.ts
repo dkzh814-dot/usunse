@@ -33,14 +33,15 @@ End on something that feels like insight, not damage.
 
 Rules:
 - No fortune-telling words (Wood, Fire, Earth, Metal, Water, ohaeng, element, etc.)
-- No bullet points, no headers
+- No bullet points, no headers, no labels like "Sentence 1:"
 - Do not mention the type name ${typeName} anywhere in the copy
-- Each sentence should be 15-25 words
+- Each sentence must be at least 20 words — do not write short sentences
+- Total output should be 3 full, rich sentences. Do not cut it short.
 - The reader must finish and think 'how did it know that'`;
 
     const stream = await client.messages.stream({
       model: "claude-sonnet-4-6",
-      max_tokens: 300,
+      max_tokens: 500,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     });
