@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const BIRTH_HOURS = [
@@ -40,6 +40,13 @@ export default function BirthForm({ destination = "/result", showHour = true }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const savedName = localStorage.getItem("usunse_name");
+    const savedDob  = localStorage.getItem("usunse_dob");
+    if (savedName) setName(savedName);
+    if (savedDob)  setDob(savedDob);
+  }, []);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -68,6 +75,8 @@ export default function BirthForm({ destination = "/result", showHour = true }: 
     const isoDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 
     setLoading(true);
+    localStorage.setItem("usunse_name", name.trim());
+    localStorage.setItem("usunse_dob", dob);
 
     const params = new URLSearchParams({
       name: name.trim(),

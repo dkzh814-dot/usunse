@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
@@ -19,6 +19,11 @@ export default function EmailGate({ onUnlock, idolName, name, dob, hour, title, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const saved = localStorage.getItem("usunse_email");
+    if (saved) setEmail(saved);
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -29,6 +34,7 @@ export default function EmailGate({ onUnlock, idolName, name, dob, hour, title, 
     }
 
     setLoading(true);
+    localStorage.setItem("usunse_email", email.toLowerCase().trim());
 
     try {
       await addDoc(collection(db, "users"), {
