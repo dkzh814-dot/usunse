@@ -74,22 +74,22 @@ export default function Home() {
                 <div
                   key={card.title}
                   onClick={card.featured ? () => { window.location.href = "/kpop-test"; } : undefined}
-                  className={`relative rounded-xl border p-4 flex flex-col justify-between min-h-[130px] transition-colors
+                  className={`rounded-xl border p-4 flex flex-col gap-2 min-h-[130px] transition-colors
                     ${card.featured
                       ? "border-accent/30 bg-[#12121a]/80 cursor-pointer hover:border-accent/50"
                       : "border-white/5 bg-[#12121a]/40 cursor-default"
                     }`}
                 >
                   {card.featured ? (
-                    <span className="absolute top-3 right-3 text-[9px] font-semibold tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full uppercase">
+                    <span className="self-start text-[9px] font-semibold tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full uppercase">
                       Featured
                     </span>
                   ) : (
-                    <span className="absolute top-3 right-3 text-[9px] font-medium tracking-wide text-muted/50 bg-white/5 px-2 py-0.5 rounded-full">
+                    <span className="self-start text-[9px] font-medium tracking-wide text-muted/50 bg-white/5 px-2 py-0.5 rounded-full">
                       Coming Soon
                     </span>
                   )}
-                  <div className="flex flex-col gap-1.5 pr-14">
+                  <div className="flex flex-col gap-1.5">
                     <p className="text-sm font-medium text-text/80 leading-snug">{card.title}</p>
                     <p className="text-xs text-muted/50 leading-snug">{card.desc}</p>
                   </div>
