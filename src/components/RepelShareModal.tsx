@@ -1,25 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { IdolMatch } from "@/lib/idols";
+import { useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { drawShareCard } from "@/lib/shareCanvas";
+import { drawRepelCard } from "@/lib/shareCanvas";
 
-interface ShareModalProps {
-  name: string;
-  match: IdolMatch;
+interface RepelShareModalProps {
+  typeName: string;
+  tagline: string;
   userEmail: string;
   resultUrl: string;
   shareText: string;
   onClose: () => void;
-}
-
-function getShortDesc(score: number): string {
-  if (score >= 85) return "A rare celestial alignment — once in a generation.";
-  if (score >= 75) return "Harmony and magnetic pull — written in the stars.";
-  if (score >= 65) return "A genuine cosmic thread — your charts agree.";
-  return "Contrast that sparks growth — an invitation, not a warning.";
 }
 
 function generateCouponCode(): string {
@@ -38,22 +30,11 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([arr], { type: mime });
 }
 
-function buildShareCanvas(name: string, match: IdolMatch): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  drawShareCard(canvas, {
-    name,
-    idolName: match.idol.name,
-    group: match.idol.group,
-    score: match.score,
-    desc: getShortDesc(match.score),
-  });
-  return canvas;
-}
-
 type PendingState = "idle" | "pending" | "done";
 
-export default function ShareModal({ name, match, userEmail, resultUrl, shareText, onClose }: ShareModalProps) {
-  const cardRef = useRef<HTMLDivElement>(null); // preview only
+export default function RepelShareModal({
+  typeName, tagline, userEmail, resultUrl, shareText, onClose,
+}: RepelShareModalProps) {
   const [couponCode, setCouponCode] = useState("");
   const [couponCopied, setCouponCopied] = useState(false);
   const [pending, setPending] = useState<PendingState>("idle");
@@ -78,30 +59,33 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
     } catch { /* don't block */ }
   }
 
-  // Save as Photo — download only, no coupon
+  function buildCanvas() {
+    const canvas = document.createElement("canvas");
+    drawRepelCard(canvas, { typeName, tagline });
+    return canvas;
+  }
+
   async function handleSavePhoto() {
     setCapturing(true);
     try {
-      const canvas = buildShareCanvas(name, match);
-      const dataUrl = canvas.toDataURL("image/png");
+      const canvas = buildCanvas();
       const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `usunse-${match.idol.name.replace(/\s/g, "-")}.png`;
+      a.href = canvas.toDataURL("image/png");
+      a.download = `usunse-repel.png`;
       a.click();
       showToast("Photo saved!");
     } catch (err) {
-      console.error("Capture failed:", err);
-      showToast("Capture failed — try again");
+      console.error("Save failed:", err);
+      showToast("Failed — try again");
     } finally {
       setCapturing(false);
     }
   }
 
-  // SNS share (Instagram / TikTok) — Web Share on mobile, clipboard on desktop
   async function handleSNSShare(platform: "instagram" | "tiktok") {
     setCapturing(true);
     try {
-      const canvas = buildShareCanvas(name, match);
+      const canvas = buildCanvas();
       const dataUrl = canvas.toDataURL("image/png");
       const blob = dataUrlToBlob(dataUrl);
       const file = new File([blob], "usunse.png", { type: "image/png" });
@@ -126,20 +110,18 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
       }
     } catch (err) {
       console.error("Share failed:", err);
-      showToast("Capture failed — try again");
+      showToast("Failed — try again");
     } finally {
       setCapturing(false);
     }
     setPending("pending");
   }
 
-  // X/Twitter — open tab, show "I shared it!" immediately
   function handleTwitter() {
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer");
     setPending("pending");
   }
 
-  // Copy Link — no coupon
   async function handleCopyLink() {
     await navigator.clipboard.writeText(resultUrl);
     showToast("Link copied!");
@@ -151,12 +133,7 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
     setTimeout(() => setCouponCopied(false), 2000);
   }
 
-  // Solid color for card text — gradient text breaks canvas capture
   const cardAccent = "#c084fc";
-
-  const previewR = 38;
-  const previewCirc = 2 * Math.PI * previewR;
-  const previewOffset = previewCirc * (1 - match.score / 100);
 
   return (
     <div
@@ -168,50 +145,32 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
           ×
         </button>
 
-        {/* Share card — this exact element is captured by dom-to-image-more */}
-        <div
-          ref={cardRef}
-          style={{
-            width: "100%",
-            aspectRatio: "9/16",
-            background: "linear-gradient(160deg,#0a0a0f 0%,#12121a 50%,#0a0a0f 100%)",
-            position: "relative",
-            overflow: "hidden",
-            fontFamily: "system-ui,-apple-system,sans-serif",
-          }}
-        >
-          {/* Glows — no backdrop-filter, just regular filter:blur */}
-          <div style={{ position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)", width: "70%", height: "30%", background: "rgba(192,132,252,0.2)", borderRadius: "50%", filter: "blur(50px)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: "12%", right: "15%", width: "45%", height: "20%", background: "rgba(244,114,182,0.12)", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
+        {/* Preview card */}
+        <div style={{
+          width: "100%",
+          aspectRatio: "9/16",
+          background: "linear-gradient(160deg,#0a0a0f 0%,#12121a 50%,#0a0a0f 100%)",
+          position: "relative",
+          overflow: "hidden",
+          fontFamily: "system-ui,-apple-system,sans-serif",
+        }}>
+          {/* Glows */}
+          <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", width: "75%", height: "35%", background: "rgba(192,132,252,0.18)", borderRadius: "50%", filter: "blur(55px)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: "16%", left: "20%", width: "50%", height: "22%", background: "rgba(244,114,182,0.1)", borderRadius: "50%", filter: "blur(45px)", pointerEvents: "none" }} />
 
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "15% 8%" }}>
-            {/* US/NE logo */}
+            {/* Logo */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1, gap: 1 }}>
               <span style={{ fontSize: 12, fontWeight: 900, color: cardAccent }}>US</span>
               <span style={{ fontSize: 12, fontWeight: 900, color: cardAccent }}>NE</span>
             </div>
 
-            {/* Pairing */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
-              <span style={{ fontSize: 17, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{name}</span>
-              <span style={{ fontSize: 13, color: "rgba(192,132,252,0.6)", lineHeight: 1 }}>✦</span>
-              <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, color: cardAccent }}>{match.idol.name}</span>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{match.idol.group}</span>
-
-              {/* Score ring — solid stroke, no linearGradient (broken in canvas capture) */}
-              <div style={{ position: "relative", width: 84, height: 84, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="84" height="84" viewBox="0 0 84 84" style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}>
-                  <circle cx="42" cy="42" r={previewR} fill="none" stroke="#1e1e2e" strokeWidth="7" />
-                  <circle cx="42" cy="42" r={previewR} fill="none" stroke={cardAccent} strokeWidth="7"
-                    strokeLinecap="round" strokeDasharray={previewCirc} strokeDashoffset={previewOffset} />
-                </svg>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, lineHeight: 1, color: cardAccent }}>{match.score}%</span>
-                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.35)", letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>match</span>
-                </div>
-              </div>
-
-              <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.4)", maxWidth: "78%", lineHeight: 1.55 }}>{getShortDesc(match.score)}</p>
+            {/* Content */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
+              <span style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>You attract</span>
+              <span style={{ fontSize: 26, fontWeight: 900, lineHeight: 1.05, color: cardAccent }}>{typeName}</span>
+              <div style={{ width: 48, height: 1, background: "rgba(192,132,252,0.25)", margin: "4px 0" }} />
+              <p style={{ margin: 0, fontSize: 11, fontStyle: "italic", color: "rgba(255,255,255,0.5)", maxWidth: "82%", lineHeight: 1.55 }}>{tagline}</p>
             </div>
 
             <p style={{ margin: 0, fontSize: 8, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.18)" }}>usunse.com</p>

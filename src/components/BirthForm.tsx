@@ -27,7 +27,12 @@ function formatDob(raw: string): string {
   return `${digits.slice(0, 2)} / ${digits.slice(2, 4)} / ${digits.slice(4)}`;
 }
 
-export default function BirthForm() {
+interface BirthFormProps {
+  destination?: string;
+  showHour?: boolean;
+}
+
+export default function BirthForm({ destination = "/result", showHour = true }: BirthFormProps) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
@@ -67,10 +72,10 @@ export default function BirthForm() {
     const params = new URLSearchParams({
       name: name.trim(),
       dob: isoDate,
-      ...(hour !== "" ? { hour } : {}),
+      ...(showHour && hour !== "" ? { hour } : {}),
     });
 
-    router.push(`/result?${params.toString()}`);
+    router.push(`${destination}?${params.toString()}`);
   }
 
   return (
@@ -104,22 +109,24 @@ export default function BirthForm() {
         />
       </div>
 
-      <div>
-        <label className="block text-xs uppercase tracking-widest text-muted mb-2">
-          Birth Hour <span className="text-muted/60 normal-case">(optional — for accuracy)</span>
-        </label>
-        <select
-          value={hour}
-          onChange={(e) => setHour(e.target.value)}
-          className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
-        >
-          {BIRTH_HOURS.map((h) => (
-            <option key={h.value} value={h.value} className="bg-surface">
-              {h.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {showHour && (
+        <div>
+          <label className="block text-xs uppercase tracking-widest text-muted mb-2">
+            Birth Hour <span className="text-muted/60 normal-case">(optional — for accuracy)</span>
+          </label>
+          <select
+            value={hour}
+            onChange={(e) => setHour(e.target.value)}
+            className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
+          >
+            {BIRTH_HOURS.map((h) => (
+              <option key={h.value} value={h.value} className="bg-surface">
+                {h.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && (
         <p className="text-red-400 text-sm">{error}</p>

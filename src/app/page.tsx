@@ -4,22 +4,26 @@ const freeCards = [
   {
     title: "Which K-pop idol is your destiny?",
     desc: "Find the idol your energy was born to meet",
-    featured: true,
+    href: "/kpop-test",
+    live: true,
   },
   {
     title: "What type do you repel?",
     desc: "Discover the energy pattern behind your toxic relationships",
-    featured: false,
+    href: "/repel-test",
+    live: true,
   },
   {
     title: "This month's energy keyword",
     desc: "One word that defines your energy this month",
-    featured: false,
+    href: null,
+    live: false,
   },
   {
     title: "Your energy type",
     desc: "See the elemental combination that makes you, you",
-    featured: false,
+    href: null,
+    live: false,
   },
 ];
 
@@ -73,16 +77,16 @@ export default function Home() {
               {freeCards.map((card) => (
                 <div
                   key={card.title}
-                  onClick={card.featured ? () => { window.location.href = "/kpop-test"; } : undefined}
+                  onClick={card.href ? () => { window.location.href = card.href!; } : undefined}
                   className={`rounded-xl border p-4 flex flex-col gap-2 min-h-[130px] transition-colors
-                    ${card.featured
+                    ${card.live
                       ? "border-accent/30 bg-[#12121a]/80 cursor-pointer hover:border-accent/50"
                       : "border-white/5 bg-[#12121a]/40 cursor-default"
                     }`}
                 >
-                  {card.featured ? (
+                  {card.live ? (
                     <span className="self-start text-[9px] font-semibold tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full uppercase">
-                      Featured
+                      Free
                     </span>
                   ) : (
                     <span className="self-start text-[9px] font-medium tracking-wide text-muted/50 bg-white/5 px-2 py-0.5 rounded-full">

@@ -10,9 +10,11 @@ interface EmailGateProps {
   name?: string;
   dob?: string;
   hour?: string;
+  title?: string;
+  subtitle?: string;
 }
 
-export default function EmailGate({ onUnlock, idolName, name, dob, hour }: EmailGateProps) {
+export default function EmailGate({ onUnlock, idolName, name, dob, hour, title, subtitle }: EmailGateProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -51,11 +53,10 @@ export default function EmailGate({ onUnlock, idolName, name, dob, hour }: Email
         <div className="text-center space-y-2">
           <div className="text-3xl">✨</div>
           <h2 className="text-xl font-display font-semibold text-text">
-            Your match is ready
+            {title ?? "Your match is ready"}
           </h2>
           <p className="text-sm text-muted leading-relaxed">
-            Enter your email to reveal which idol shares your destiny —
-            and get your free result.
+            {subtitle ?? "Enter your email to reveal which idol shares your destiny — and get your free result."}
           </p>
         </div>
 
