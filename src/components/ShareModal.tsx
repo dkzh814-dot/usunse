@@ -176,11 +176,8 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
     setTimeout(() => setCouponCopied(false), 2000);
   }
 
-  const grad: React.CSSProperties = {
-    background: "linear-gradient(135deg,#c084fc,#f472b6)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-  };
+  // Solid color for card text — gradient text breaks canvas capture
+  const cardAccent = "#c084fc";
 
   const previewR = 38;
   const previewCirc = 2 * Math.PI * previewR;
@@ -215,31 +212,26 @@ export default function ShareModal({ name, match, userEmail, resultUrl, shareTex
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "15% 8%" }}>
             {/* US/NE logo */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1, gap: 1 }}>
-              <span style={{ fontSize: 12, fontWeight: 900, ...grad }}>US</span>
-              <span style={{ fontSize: 12, fontWeight: 900, ...grad }}>NE</span>
+              <span style={{ fontSize: 12, fontWeight: 900, color: cardAccent }}>US</span>
+              <span style={{ fontSize: 12, fontWeight: 900, color: cardAccent }}>NE</span>
             </div>
 
             {/* Pairing */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
               <span style={{ fontSize: 17, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{name}</span>
               <span style={{ fontSize: 13, color: "rgba(192,132,252,0.6)", lineHeight: 1 }}>✦</span>
-              <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, ...grad }}>{match.idol.name}</span>
+              <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, color: cardAccent }}>{match.idol.name}</span>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{match.idol.group}</span>
 
-              {/* Score ring */}
+              {/* Score ring — solid stroke, no linearGradient (broken in canvas capture) */}
               <div style={{ position: "relative", width: 84, height: 84, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="84" height="84" viewBox="0 0 84 84" style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}>
-                  <defs>
-                    <linearGradient id="modal-ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#c084fc" /><stop offset="100%" stopColor="#f472b6" />
-                    </linearGradient>
-                  </defs>
                   <circle cx="42" cy="42" r={previewR} fill="none" stroke="#1e1e2e" strokeWidth="7" />
-                  <circle cx="42" cy="42" r={previewR} fill="none" stroke="url(#modal-ring-grad)" strokeWidth="7"
+                  <circle cx="42" cy="42" r={previewR} fill="none" stroke={cardAccent} strokeWidth="7"
                     strokeLinecap="round" strokeDasharray={previewCirc} strokeDashoffset={previewOffset} />
                 </svg>
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, lineHeight: 1, ...grad }}>{match.score}%</span>
+                  <span style={{ fontSize: 16, fontWeight: 900, lineHeight: 1, color: cardAccent }}>{match.score}%</span>
                   <span style={{ fontSize: 7, color: "rgba(255,255,255,0.35)", letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>match</span>
                 </div>
               </div>
