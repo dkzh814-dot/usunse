@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface EmailGateProps {
-  onUnlock: () => void;
+  onUnlock: (email: string) => void;
   idolName: string;
 }
 
@@ -34,7 +34,7 @@ export default function EmailGate({ onUnlock, idolName }: EmailGateProps) {
       // Don't block user if Firebase fails
     } finally {
       setLoading(false);
-      onUnlock();
+      onUnlock(email.toLowerCase().trim());
     }
   }
 

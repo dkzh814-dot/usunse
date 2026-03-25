@@ -27,11 +27,11 @@ const freeCards = [
 ];
 
 const paidCards = [
-  { title: "Are we compatible?", price: "$1", full: false },
-  { title: "My Five Elements", price: "$1", full: false },
-  { title: "Full Destiny Reading", price: "$10", full: false },
-  { title: "This year's fortune", price: "$10", full: false },
-  { title: "Monthly Energy Report", price: "$5/mo", sub: "mailing subscription", full: true },
+  { title: "Are we compatible?", desc: "Enter any birth date — idol, crush, or partner", price: "$1", full: false },
+  { title: "My Five Elements", desc: "See what your chart is made of and what's missing", price: "$1", full: false },
+  { title: "Full Destiny Reading", desc: "Your personality, career, love, and life cycles in full", price: "$10", full: false },
+  { title: "This year's fortune", desc: "What 2026 and 2027 hold for your energy", price: "$10", full: false },
+  { title: "Monthly Energy Report", desc: "Your monthly forecast delivered to your inbox", price: "$5/mo", sub: "mailing subscription", full: true },
 ];
 
 const marqueeText = "Share your result → Unlock 30% off any $10 reading";
@@ -125,11 +125,12 @@ export default function Home() {
               {paidCards.map((card) => (
                 <div
                   key={card.title}
-                  className={`relative rounded-xl border border-white/5 bg-[#12121a]/40 backdrop-blur-sm p-4 flex flex-col justify-between min-h-[80px] cursor-pointer hover:border-accent/20 transition-colors
+                  className={`relative rounded-xl border border-white/5 bg-[#12121a]/40 backdrop-blur-sm p-4 flex flex-col min-h-[100px] cursor-pointer hover:border-accent/20 transition-colors
                     ${card.full ? "col-span-2" : ""}`}
                 >
                   <p className="text-sm font-medium text-text/90">{card.title}</p>
-                  <div className="flex items-baseline gap-1.5">
+                  <p className="text-xs text-muted/50 leading-snug mt-0.5">{card.desc}</p>
+                  <div className="flex items-baseline gap-1.5 mt-auto pt-2">
                     <span className="text-base font-bold gradient-text">{card.price}</span>
                     {card.sub && (
                       <span className="text-xs text-muted/50">{card.sub}</span>

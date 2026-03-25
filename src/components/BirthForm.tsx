@@ -20,6 +20,13 @@ const BIRTH_HOURS = [
   { value: "23", label: "亥 23:00–00:00" },
 ];
 
+function formatDob(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
+  return `${digits.slice(0, 2)} / ${digits.slice(2, 4)} / ${digits.slice(4)}`;
+}
+
 export default function BirthForm() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -41,9 +48,9 @@ export default function BirthForm() {
       return;
     }
 
-    const parts = dob.split("/");
+    const parts = dob.split(" / ");
     if (parts.length !== 3 || parts.some((p) => p === "")) {
-      setError("Enter date as MM/DD/YYYY.");
+      setError("Enter date as MM / DD / YYYY.");
       return;
     }
     const [m, d, y] = parts;
@@ -88,11 +95,12 @@ export default function BirthForm() {
         </label>
         <input
           type="text"
+          inputMode="numeric"
           value={dob}
-          onChange={(e) => setDob(e.target.value)}
-          placeholder="MM/DD/YYYY"
+          onChange={(e) => setDob(formatDob(e.target.value))}
+          placeholder="MM / DD / YYYY"
           className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
-          maxLength={10}
+          maxLength={14}
         />
       </div>
 
