@@ -137,8 +137,10 @@ export function getHourPillar(
   day: number,
   hour: number
 ): Pillar {
-  // Hour branch: 子 starts at 23:00-01:00
-  const hourBranchIdx = Math.floor((hour + 1) / 2) % 12;
+  // Korean standard 30-min offset: 자시 = 23:30–01:29
+  // Hours 0 and 1 (00:00–01:29) still belong to 자시, so normalize them to 23
+  const h = hour < 2 ? 23 : hour;
+  const hourBranchIdx = Math.floor((h + 1) / 2) % 12;
   const dayPillar = getDayPillar(year, month, day);
   const dayStemIdx = HEAVENLY_STEMS.findIndex(
     (s) => s.char === dayPillar.heavenlyStem

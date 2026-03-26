@@ -5,18 +5,18 @@ import { useRouter } from "next/navigation";
 
 const HOUR_OPTIONS = [
   { value: "",   label: "Don't know / Skip" },
-  { value: "23", label: "자  11pm – 1am" },
-  { value: "1",  label: "축  1am – 3am" },
-  { value: "3",  label: "인  3am – 5am" },
-  { value: "5",  label: "묘  5am – 7am" },
-  { value: "7",  label: "진  7am – 9am" },
-  { value: "9",  label: "사  9am – 11am" },
-  { value: "11", label: "오  11am – 1pm" },
-  { value: "13", label: "미  1pm – 3pm" },
-  { value: "15", label: "신  3pm – 5pm" },
-  { value: "17", label: "유  5pm – 7pm" },
-  { value: "19", label: "술  7pm – 9pm" },
-  { value: "21", label: "해  9pm – 11pm" },
+  { value: "23", label: "자  11:30pm – 1:29am" },
+  { value: "1",  label: "축  1:30am – 3:29am" },
+  { value: "3",  label: "인  3:30am – 5:29am" },
+  { value: "5",  label: "묘  5:30am – 7:29am" },
+  { value: "7",  label: "진  7:30am – 9:29am" },
+  { value: "9",  label: "사  9:30am – 11:29am" },
+  { value: "11", label: "오  11:30am – 1:29pm" },
+  { value: "13", label: "미  1:30pm – 3:29pm" },
+  { value: "15", label: "신  3:30pm – 5:29pm" },
+  { value: "17", label: "유  5:30pm – 7:29pm" },
+  { value: "19", label: "술  7:30pm – 9:29pm" },
+  { value: "21", label: "해  9:30pm – 11:29pm" },
 ];
 
 function formatDob(raw: string): string {
