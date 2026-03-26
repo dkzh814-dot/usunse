@@ -6,7 +6,7 @@ import { getEnergyColorResult, EnergyColorResult } from "@/lib/energyColor";
 import EmailGate from "@/components/EmailGate";
 import EnergyColorShareModal from "@/components/EnergyColorShareModal";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 function safeDocId(email: string, dob: string, test: string): string {
   return `${email.replace(/[^a-zA-Z0-9]/g, "_")}_${dob}_${test}`;
@@ -32,26 +32,18 @@ function EnergyColorResultContent() {
     setUserEmail(email);
     try {
       const docRef = doc(db, "completions", safeDocId(email, dob, "energy-color"));
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data() as EnergyColorResult & { email: string; test: string };
-        setResult({ key: data.key, color: data.color, name: data.name, desc: data.desc });
-      } else {
-        const [y, m, d] = dob.split("-").map(Number);
-        const calculated = getEnergyColorResult(y, m, d);
-        setResult(calculated);
-        await setDoc(docRef, {
-          email, dob, test: "energy-color",
-          key: calculated.key,
-          color: calculated.color,
-          name: calculated.name,
-          desc: calculated.desc,
-          createdAt: serverTimestamp(),
-        });
-      }
-    } catch {
-      // Already set from useEffect — just unlock
-    }
+      const [y, m, d] = dob.split("-").map(Number);
+      const calculated = getEnergyColorResult(y, m, d);
+      setResult(calculated);
+      await setDoc(docRef, {
+        email, dob, test: "energy-color",
+        key: calculated.key,
+        color: calculated.color,
+        name: calculated.name,
+        desc: calculated.desc,
+        createdAt: serverTimestamp(),
+      });
+    } catch { /* don't block */ }
     setUnlocked(true);
     window.scrollTo(0, 0);
   }

@@ -7,7 +7,7 @@ import { Element } from "@/lib/saju";
 import EmailGate from "@/components/EmailGate";
 import FiveElementsShareModal from "@/components/FiveElementsShareModal";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 function safeDocId(email: string, dob: string, test: string): string {
   return `${email.replace(/[^a-zA-Z0-9]/g, "_")}_${dob}_${test}`;
@@ -34,17 +34,8 @@ function MyFiveElementsContent() {
   async function handleUnlock(email: string) {
     setUserEmail(email);
     try {
-      const docRef = doc(db, "completions", safeDocId(email, dob, "five-elements"));
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        setResult({
-          counts:      data.counts as Record<Element, number>,
-          dominant:    data.dominant as Element[],
-          missing:     data.missing  as Element[],
-          usedPillars: data.usedPillars as 3 | 4,
-        });
-      } else if (result) {
+      if (result) {
+        const docRef = doc(db, "completions", safeDocId(email, dob, "five-elements"));
         await setDoc(docRef, {
           email, dob, test: "five-elements",
           counts:      result.counts,
