@@ -1,4 +1,4 @@
-import { getYearPillar, getMonthPillar, getDayPillar, getHourPillar, Element, Pillar } from "./saju";
+import { getYearPillar, getMonthPillar, getDayPillar, getHourPillar, lichunSajuYear, lichunSajuMonth, Element, Pillar } from "./saju";
 
 export interface FiveElementsResult {
   counts: Record<Element, number>;
@@ -35,8 +35,10 @@ export function getFiveElementsResult(
 ): FiveElementsResult {
   const counts: Record<Element, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
 
-  addPillar(counts, getYearPillar(year));
-  addPillar(counts, getMonthPillar(year, month));
+  const sajuYear = lichunSajuYear(year, month, day);
+  const sajuMonth = lichunSajuMonth(month, day);
+  addPillar(counts, getYearPillar(sajuYear));
+  addPillar(counts, getMonthPillar(sajuYear, sajuMonth));
   addPillar(counts, getDayPillar(year, month, day));
 
   let usedPillars: 3 | 4 = 3;

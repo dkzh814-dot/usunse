@@ -1,4 +1,4 @@
-import { getYearPillar, getMonthPillar, getDayPillar, Element } from "./saju";
+import { getYearPillar, getMonthPillar, getDayPillar, lichunSajuYear, lichunSajuMonth, Element } from "./saju";
 
 const BRANCH_ELEMENTS: Record<string, Element> = {
   "子": "water", "丑": "earth", "寅": "wood", "卯": "wood",
@@ -7,8 +7,10 @@ const BRANCH_ELEMENTS: Record<string, Element> = {
 };
 
 export function getDominantElement(year: number, month: number, day: number): Element {
-  const yearPillar  = getYearPillar(year);
-  const monthPillar = getMonthPillar(year, month);
+  const sajuYear = lichunSajuYear(year, month, day);
+  const sajuMonth = lichunSajuMonth(month, day);
+  const yearPillar  = getYearPillar(sajuYear);
+  const monthPillar = getMonthPillar(sajuYear, sajuMonth);
   const dayPillar   = getDayPillar(year, month, day);
 
   const counts: Record<Element, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };

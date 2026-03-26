@@ -161,12 +161,12 @@ export function getHourPillar(
 
 // 입춘 (Lichun) is ~Feb 4. Before it, the saju year is the previous calendar year.
 // Also, if born in February before 입춘, the saju month is still 丑月 (treat as month 1).
-function lichunSajuYear(year: number, month: number, day: number): number {
+export function lichunSajuYear(year: number, month: number, day: number): number {
   if (month < 2 || (month === 2 && day < 4)) return year - 1;
   return year;
 }
 
-function lichunSajuMonth(month: number, day: number): number {
+export function lichunSajuMonth(month: number, day: number): number {
   // Feb before 입춘 still belongs to 丑月 (same as January in saju)
   if (month === 2 && day < 4) return 1;
   return month;

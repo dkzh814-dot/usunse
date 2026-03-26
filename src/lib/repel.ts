@@ -1,7 +1,7 @@
 // Repel type calculation — 3 pillars (Year, Month, Day) only.
 // Counts stem + branch element for each pillar = 6 characters total.
 
-import { getYearPillar, getMonthPillar, getDayPillar, Element } from "./saju";
+import { getYearPillar, getMonthPillar, getDayPillar, lichunSajuYear, lichunSajuMonth, Element } from "./saju";
 
 const BRANCH_ELEMENTS: Record<string, Element> = {
   "子": "water", "丑": "earth", "寅": "wood", "卯": "wood",
@@ -79,8 +79,10 @@ export interface RepelResult {
 }
 
 export function getRepelResult(year: number, month: number, day: number): RepelResult {
-  const yearPillar  = getYearPillar(year);
-  const monthPillar = getMonthPillar(year, month);
+  const sajuYear = lichunSajuYear(year, month, day);
+  const sajuMonth = lichunSajuMonth(month, day);
+  const yearPillar  = getYearPillar(sajuYear);
+  const monthPillar = getMonthPillar(sajuYear, sajuMonth);
   const dayPillar   = getDayPillar(year, month, day);
 
   const counts: Record<Element, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
