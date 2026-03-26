@@ -28,7 +28,7 @@ const freeCards = [
 ];
 
 const paidCards = [
-  { title: "Are we compatible?",              desc: "Enter any birth date — idol, crush, or partner",          price: "$1",    sub: null,                  soon: false },
+  { title: "Are we compatible?",              desc: "Enter any birth date — idol, crush, or partner",          price: "$1",    sub: null,                  soon: false, href: "/compatibility" },
   { title: "Who were you in a past life?",    desc: "Your past life revealed through your chart",              price: "$1",    sub: null,                  soon: true  },
   { title: "Full Destiny Reading",            desc: "Your personality, career, love, and life cycles in full", price: "$10",   sub: null,                  soon: false },
   { title: "This year's fortune",             desc: "What 2026 and 2027 hold for your energy",                 price: "$10",   sub: null,                  soon: false },
@@ -110,7 +110,9 @@ export default function Home() {
               {paidCards.map((card) => (
                 <div
                   key={card.title}
-                  className="relative rounded-xl border border-white/5 bg-[#12121a]/40 p-4 flex flex-col h-[138px] cursor-pointer hover:border-accent/20 transition-colors"
+                  onClick={"href" in card && card.href && !card.soon ? () => { window.location.href = (card as {href: string}).href; } : undefined}
+                  className={`relative rounded-xl border border-white/5 bg-[#12121a]/40 p-4 flex flex-col h-[138px] transition-colors
+                    ${"href" in card && card.href && !card.soon ? "cursor-pointer hover:border-accent/30" : "cursor-default hover:border-accent/20"}`}
                 >
                   {card.soon && (
                     <span className="self-start text-[9px] font-medium tracking-wide text-muted/50 bg-white/5 px-2 py-0.5 rounded-full mb-1.5">

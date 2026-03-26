@@ -355,6 +355,134 @@ export function drawFiveElementsCard(canvas: HTMLCanvasElement, opts: FiveElemen
   ctx.letterSpacing = "0";
 }
 
+// ── Compatibility card ────────────────────────────────────────────────────────
+
+interface CompatibilityDrawOptions {
+  name1: string;
+  name2: string;
+  score: number;
+  hook: string;
+}
+
+export function drawCompatibilityCard(canvas: HTMLCanvasElement, opts: CompatibilityDrawOptions): void {
+  const W = 540;
+  const H = 960;
+  canvas.width = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext("2d")!;
+  const cx = W / 2;
+  const PURPLE = "#c084fc";
+  const MUTED = "rgba(255,255,255,0.35)";
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, "#0a0a0f");
+  bgGrad.addColorStop(0.5, "#12121a");
+  bgGrad.addColorStop(1, "#0a0a0f");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Glow top (purple)
+  const glowTop = ctx.createRadialGradient(cx, 150, 0, cx, 150, 240);
+  glowTop.addColorStop(0, "rgba(192,132,252,0.22)");
+  glowTop.addColorStop(1, "rgba(192,132,252,0)");
+  ctx.fillStyle = glowTop;
+  ctx.fillRect(0, 0, W, H / 2);
+
+  // Glow bottom (pink)
+  const glowBot = ctx.createRadialGradient(W * 0.3, H * 0.82, 0, W * 0.3, H * 0.82, 160);
+  glowBot.addColorStop(0, "rgba(244,114,182,0.14)");
+  glowBot.addColorStop(1, "rgba(244,114,182,0)");
+  ctx.fillStyle = glowBot;
+  ctx.fillRect(0, H / 2, W, H / 2);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Logo
+  ctx.fillStyle = PURPLE;
+  ctx.font = "900 18px system-ui,-apple-system,sans-serif";
+  ctx.fillText("US", cx, 170);
+  ctx.fillText("NE", cx, 196);
+
+  // name1
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font = "600 30px system-ui,-apple-system,sans-serif";
+  ctx.fillText(opts.name1, cx, 316);
+
+  // Connector ✦
+  ctx.fillStyle = "rgba(192,132,252,0.65)";
+  ctx.font = "400 22px system-ui,-apple-system,sans-serif";
+  ctx.fillText("✦", cx, 360);
+
+  // name2
+  const name2Size = opts.name2.length > 12 ? 38 : 48;
+  ctx.fillStyle = PURPLE;
+  ctx.font = `900 ${name2Size}px system-ui,-apple-system,sans-serif`;
+  ctx.fillText(opts.name2, cx, 416);
+
+  // Score ring
+  const ringCx = cx;
+  const ringCy = 570;
+  const ringR = 68;
+  const ringW = 11;
+  const startAngle = -Math.PI / 2;
+  const endAngle = startAngle + (2 * Math.PI * opts.score) / 100;
+
+  // Track
+  ctx.beginPath();
+  ctx.arc(ringCx, ringCy, ringR, 0, 2 * Math.PI);
+  ctx.strokeStyle = "#1e1e2e";
+  ctx.lineWidth = ringW;
+  ctx.stroke();
+
+  // Fill arc
+  ctx.beginPath();
+  ctx.arc(ringCx, ringCy, ringR, startAngle, endAngle);
+  ctx.strokeStyle = PURPLE;
+  ctx.lineWidth = ringW;
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // Score %
+  ctx.fillStyle = PURPLE;
+  ctx.font = "900 30px system-ui,-apple-system,sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`${opts.score}%`, ringCx, ringCy - 7);
+
+  ctx.fillStyle = MUTED;
+  ctx.font = "400 11px system-ui,-apple-system,sans-serif";
+  ctx.letterSpacing = "0.1em";
+  ctx.fillText("COMPATIBLE", ringCx, ringCy + 20);
+  ctx.letterSpacing = "0";
+
+  // Divider
+  ctx.strokeStyle = "rgba(255,255,255,0.10)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - 80, 690);
+  ctx.lineTo(cx + 80, 690);
+  ctx.stroke();
+
+  // Hook text (italic, wrapped)
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.font = "italic 400 17px Georgia,serif";
+  const hookLines = wrapText(ctx, `"${opts.hook}"`, W * 0.76);
+  const lineH = 27;
+  const hookY = 720;
+  hookLines.forEach((line, i) => {
+    ctx.fillText(line, cx, hookY + i * lineH);
+  });
+
+  // usunse.com
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.font = "400 12px system-ui,-apple-system,sans-serif";
+  ctx.letterSpacing = "0.15em";
+  ctx.fillText("USUNSE.COM", cx, 828);
+  ctx.letterSpacing = "0";
+}
+
 // ── Repel card ───────────────────────────────────────────────────────────────
 
 interface RepelDrawOptions {
