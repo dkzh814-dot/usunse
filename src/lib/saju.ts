@@ -159,16 +159,31 @@ export function getHourPillar(
   };
 }
 
-// 입춘 (Lichun) is ~Feb 4. Before it, the saju year is the previous calendar year.
-// Also, if born in February before 입춘, the saju month is still 丑月 (treat as month 1).
+// 입춘 (Lichun) ~Feb 4 is the ONLY year boundary in saju.
 export function lichunSajuYear(year: number, month: number, day: number): number {
   if (month < 2 || (month === 2 && day < 4)) return year - 1;
   return year;
 }
 
+// Approximate day of month when the saju month changes (절기 시작일).
+// If born before this day, the saju month is still the previous calendar month.
+const SOLAR_TERM_DAY: Record<number, number> = {
+  1: 6,  // 소한  ~Jan 6  → 丑月 starts
+  2: 4,  // 입춘  ~Feb 4  → 寅月 starts (also year boundary)
+  3: 6,  // 경칩  ~Mar 6  → 卯月 starts
+  4: 5,  // 청명  ~Apr 5  → 辰月 starts
+  5: 6,  // 입하  ~May 6  → 巳月 starts
+  6: 6,  // 망종  ~Jun 6  → 午月 starts
+  7: 7,  // 소서  ~Jul 7  → 未月 starts
+  8: 7,  // 입추  ~Aug 7  → 申月 starts
+  9: 8,  // 백로  ~Sep 8  → 酉月 starts
+  10: 8, // 한로  ~Oct 8  → 戌月 starts
+  11: 7, // 입동  ~Nov 7  → 亥月 starts
+  12: 7, // 대설  ~Dec 7  → 子月 starts
+};
+
 export function lichunSajuMonth(month: number, day: number): number {
-  // Feb before 입춘 still belongs to 丑月 (same as January in saju)
-  if (month === 2 && day < 4) return 1;
+  if (day < SOLAR_TERM_DAY[month]) return month === 1 ? 12 : month - 1;
   return month;
 }
 

@@ -13,6 +13,26 @@ function safeDocId(email: string, dob: string, test: string): string {
   return `${email.replace(/[^a-zA-Z0-9]/g, "_")}_${dob}_${test}`;
 }
 
+const HOUR_LABELS: Record<string, string> = {
+  "23": "자  11:30pm – 1:29am",
+  "2":  "축  1:30am – 3:29am",
+  "3":  "인  3:30am – 5:29am",
+  "5":  "묘  5:30am – 7:29am",
+  "7":  "진  7:30am – 9:29am",
+  "9":  "사  9:30am – 11:29am",
+  "11": "오  11:30am – 1:29pm",
+  "13": "미  1:30pm – 3:29pm",
+  "15": "신  3:30pm – 5:29pm",
+  "17": "유  5:30pm – 7:29pm",
+  "19": "술  7:30pm – 9:29pm",
+  "21": "해  9:30pm – 11:29pm",
+};
+
+function formatDobDisplay(dob: string): string {
+  const [y, m, d] = dob.split("-");
+  return `${m}/${d}/${y}`;
+}
+
 function MyFiveElementsContent() {
   const searchParams = useSearchParams();
   const name   = searchParams.get("name") || "You";
@@ -105,6 +125,9 @@ function MyFiveElementsContent() {
         <div className="text-center">
           <h1 className="text-2xl font-display font-black text-text/90">My Five Elements</h1>
           <p className="text-sm text-muted/60 mt-1">{name}</p>
+          <p className="text-xs text-muted/40 mt-0.5">
+            {formatDobDisplay(dob)}{hourStr && HOUR_LABELS[hourStr] ? ` · ${HOUR_LABELS[hourStr]}` : ""}
+          </p>
         </div>
 
         {/* Bar chart */}

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 const HOUR_OPTIONS = [
   { value: "",   label: "Don't know / Skip" },
   { value: "23", label: "자  11:30pm – 1:29am" },
-  { value: "1",  label: "축  1:30am – 3:29am" },
+  { value: "2",  label: "축  1:30am – 3:29am" },
   { value: "3",  label: "인  3:30am – 5:29am" },
   { value: "5",  label: "묘  5:30am – 7:29am" },
   { value: "7",  label: "진  7:30am – 9:29am" },
