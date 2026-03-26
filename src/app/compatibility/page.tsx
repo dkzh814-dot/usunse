@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -49,7 +49,6 @@ const WARM_MESSAGES = [
 
 function CompatibilityContent() {
   const sp = useSearchParams();
-  const router = useRouter();
 
   const isSuccess = sp.get("success") === "1";
   const sessionId = sp.get("session_id");
@@ -199,32 +198,53 @@ function CompatibilityContent() {
       }
     } catch { /* proceed to payment */ }
 
-    // Create Stripe session
+    // TODO: re-enable Stripe before launch — currently bypassed for testing
+    setView("generating");
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/compatibility-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tier: "compat",
-          name: name1.trim(),
-          dob: isoDob1,
-          name2: name2.trim(),
-          dob2: isoDob2,
-          email: email.trim(),
-          successPath: "/compatibility",
+          sessionId: "bypass",
+          name1: name1.trim(), dob1: isoDob1,
+          name2: name2.trim(), dob2: isoDob2,
         }),
       });
+      if (!res.ok) throw new Error("API error");
       const data = await res.json();
-      if (data.url) {
-        router.push(data.url);
-      } else {
-        setError("Checkout failed. Please try again.");
-        setLoading(false);
-      }
+
+      const resultData: ResultData = {
+        name1: name1.trim(), name2: name2.trim(),
+        dob1: isoDob1, dob2: isoDob2,
+        score: data.score, hook: data.hook, claudeBody: data.claudeBody,
+      };
+
+      try {
+        const docId = compatDocId(email.trim(), isoDob1, isoDob2);
+        await setDoc(doc(db, "compatibility_results", docId), {
+          email: email.trim(),
+          name1: name1.trim(), dob1: isoDob1,
+          name2: name2.trim(), dob2: isoDob2,
+          score: data.score, hook: data.hook, claudeBody: data.claudeBody,
+          createdAt: serverTimestamp(),
+        });
+      } catch { /* don't block */ }
+
+      setResult(resultData);
+      setView("result");
+      window.scrollTo(0, 0);
     } catch {
-      setError("Something went wrong. Please try again.");
-      setLoading(false);
+      const { score, hook } = getCompatibility(isoDob1, isoDob2);
+      setResult({
+        name1: name1.trim(), name2: name2.trim(),
+        dob1: isoDob1, dob2: isoDob2,
+        score, hook,
+        claudeBody: "The full reading couldn't load — but the score and reading above are yours to keep.",
+      });
+      setView("result");
+      window.scrollTo(0, 0);
     }
+    setLoading(false);
   }
 
   // ── result URL / share ───────────────────────────────────────────────────

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
 import Anthropic from "@anthropic-ai/sdk";
 import { getCompatibility } from "@/lib/compatibility";
 
@@ -13,11 +12,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 });
     }
 
-    // Verify Stripe session
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== "paid") {
-      return NextResponse.json({ error: "Payment not confirmed" }, { status: 402 });
-    }
+    // TODO: re-enable Stripe verification before launch
+    // const session = await stripe.checkout.sessions.retrieve(sessionId);
+    // if (session.payment_status !== "paid") {
+    //   return NextResponse.json({ error: "Payment not confirmed" }, { status: 402 });
+    // }
 
     const { score, hook } = getCompatibility(dob1, dob2);
 
