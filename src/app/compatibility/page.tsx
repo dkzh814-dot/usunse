@@ -26,32 +26,22 @@ function dobToIso(dob: string): string | null {
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
-// ── main content ─────────────────────────────────────────────────────────────
+// ── types ─────────────────────────────────────────────────────────────────────
 
 interface ResultData {
   name1: string;
   name2: string;
   dob1: string;
   dob2: string;
+  email: string;
   score: number;
   hook: string;
-  claudeBody: string;
 }
 
-type View = "form" | "generating" | "result" | "error";
-
-const WARM_MESSAGES = [
-  "Reading your charts together…",
-  "The stars are considering this one…",
-  "Looking at what you share…",
-  "Almost there…",
-];
+// ── main content ─────────────────────────────────────────────────────────────
 
 function CompatibilityContent() {
   const sp = useSearchParams();
-
-  const isSuccess = sp.get("success") === "1";
-  const sessionId = sp.get("session_id");
 
   // form state
   const [name1, setName1] = useState("");
@@ -63,12 +53,11 @@ function CompatibilityContent() {
   const [loading, setLoading] = useState(false);
 
   // result state
-  const [view, setView] = useState<View>(isSuccess ? "generating" : "form");
   const [result, setResult] = useState<ResultData | null>(null);
+  const [claudeBody, setClaudeBody] = useState<string | null>(null);
+  const [claudeLoading, setClaudeLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [warmMsg, setWarmMsg] = useState(WARM_MESSAGES[0]);
-  const warmRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const generatingCalled = useRef(false);
+  const claudeCalled = useRef(false);
 
   // auto-fill from localStorage
   useEffect(() => {
@@ -80,81 +69,40 @@ function CompatibilityContent() {
     if (savedEmail) setEmail(savedEmail);
   }, []);
 
-  // warm message rotation during generating
+  // fetch Claude body whenever result is set (if not already loaded)
   useEffect(() => {
-    if (view !== "generating") return;
-    let i = 0;
-    warmRef.current = setInterval(() => {
-      i = (i + 1) % WARM_MESSAGES.length;
-      setWarmMsg(WARM_MESSAGES[i]);
-    }, 2200);
-    return () => { if (warmRef.current) clearInterval(warmRef.current); };
-  }, [view]);
+    if (!result || claudeCalled.current) return;
+    claudeCalled.current = true;
+    setClaudeLoading(true);
 
-  // after Stripe redirect: call generate API
-  useEffect(() => {
-    if (!isSuccess || !sessionId || generatingCalled.current) return;
-    generatingCalled.current = true;
-
-    const urlName1  = sp.get("name")  || "";
-    const urlDob1   = sp.get("dob")   || "";
-    const urlName2  = sp.get("name2") || "";
-    const urlDob2   = sp.get("dob2")  || "";
-    const urlEmail  = sp.get("email") || "";
-
-    async function generate() {
-      try {
-        const res = await fetch("/api/compatibility-generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId, name1: urlName1, dob1: urlDob1, name2: urlName2, dob2: urlDob2,
-          }),
-        });
-
-        if (!res.ok) throw new Error("API error");
-        const data = await res.json();
-
-        const resultData: ResultData = {
-          name1: urlName1, name2: urlName2,
-          dob1: urlDob1,  dob2: urlDob2,
-          score: data.score, hook: data.hook, claudeBody: data.claudeBody,
-        };
-
+    fetch("/api/compatibility-generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "bypass",
+        name1: result.name1, dob1: result.dob1,
+        name2: result.name2, dob2: result.dob2,
+      }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        setClaudeBody(data.claudeBody || null);
         // Save to Firestore (best-effort)
-        if (urlEmail && urlDob1 && urlDob2) {
-          try {
-            const docId = compatDocId(urlEmail, urlDob1, urlDob2);
-            await setDoc(doc(db, "compatibility_results", docId), {
-              email: urlEmail,
-              name1: urlName1, dob1: urlDob1,
-              name2: urlName2, dob2: urlDob2,
-              score: data.score, hook: data.hook, claudeBody: data.claudeBody,
-              createdAt: serverTimestamp(),
-            });
-          } catch { /* don't block */ }
+        if (result.email) {
+          const docId = compatDocId(result.email, result.dob1, result.dob2);
+          setDoc(doc(db, "compatibility_results", docId), {
+            email: result.email,
+            name1: result.name1, dob1: result.dob1,
+            name2: result.name2, dob2: result.dob2,
+            score: result.score, hook: result.hook,
+            claudeBody: data.claudeBody || "",
+            createdAt: serverTimestamp(),
+          }).catch(() => {});
         }
-
-        setResult(resultData);
-        setView("result");
-        window.scrollTo(0, 0);
-      } catch {
-        // Fallback: show hook+score even if Claude failed
-        const { score, hook } = getCompatibility(urlDob1, urlDob2);
-        setResult({
-          name1: urlName1, name2: urlName2,
-          dob1: urlDob1,  dob2: urlDob2,
-          score, hook,
-          claudeBody: "The full reading couldn't load — but the score and reading above are yours to keep.",
-        });
-        setView("result");
-        window.scrollTo(0, 0);
-      }
-    }
-
-    generate();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      })
+      .catch(() => setClaudeBody(null))
+      .finally(() => setClaudeLoading(false));
+  }, [result]);
 
   // ── form submit ──────────────────────────────────────────────────────────
 
@@ -162,7 +110,7 @@ function CompatibilityContent() {
     e.preventDefault();
     setError("");
 
-    if (!name1.trim())  { setError("Enter your name.");         return; }
+    if (!name1.trim())  { setError("Enter your name.");          return; }
     if (!dob1)          { setError("Enter your date of birth."); return; }
     if (!name2.trim())  { setError("Enter their name.");         return; }
     if (!dob2)          { setError("Enter their date of birth."); return; }
@@ -174,13 +122,11 @@ function CompatibilityContent() {
     if (!isoDob2) { setError("Check their date of birth format."); return; }
 
     setLoading(true);
-
-    // Save to localStorage
     localStorage.setItem("usunse_name",  name1.trim());
     localStorage.setItem("usunse_dob",   dob1);
     localStorage.setItem("usunse_email", email.trim());
 
-    // Check Firestore cache
+    // Check Firestore cache first
     try {
       const docId = compatDocId(email.trim(), isoDob1, isoDob2);
       const snap = await getDoc(doc(db, "compatibility_results", docId));
@@ -188,98 +134,40 @@ function CompatibilityContent() {
         const d = snap.data();
         setResult({
           name1: name1.trim(), name2: name2.trim(),
-          dob1: isoDob1, dob2: isoDob2,
-          score: d.score, hook: d.hook, claudeBody: d.claudeBody,
+          dob1: isoDob1, dob2: isoDob2, email: email.trim(),
+          score: d.score, hook: d.hook,
         });
-        setView("result");
+        setClaudeBody(d.claudeBody || null);
+        claudeCalled.current = true; // skip re-fetching
         setLoading(false);
         window.scrollTo(0, 0);
         return;
       }
-    } catch { /* proceed to payment */ }
+    } catch { /* proceed */ }
 
-    // TODO: re-enable Stripe before launch — currently bypassed for testing
-    setView("generating");
-    try {
-      const res = await fetch("/api/compatibility-generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: "bypass",
-          name1: name1.trim(), dob1: isoDob1,
-          name2: name2.trim(), dob2: isoDob2,
-        }),
-      });
-      if (!res.ok) throw new Error("API error");
-      const data = await res.json();
-
-      const resultData: ResultData = {
-        name1: name1.trim(), name2: name2.trim(),
-        dob1: isoDob1, dob2: isoDob2,
-        score: data.score, hook: data.hook, claudeBody: data.claudeBody,
-      };
-
-      try {
-        const docId = compatDocId(email.trim(), isoDob1, isoDob2);
-        await setDoc(doc(db, "compatibility_results", docId), {
-          email: email.trim(),
-          name1: name1.trim(), dob1: isoDob1,
-          name2: name2.trim(), dob2: isoDob2,
-          score: data.score, hook: data.hook, claudeBody: data.claudeBody,
-          createdAt: serverTimestamp(),
-        });
-      } catch { /* don't block */ }
-
-      setResult(resultData);
-      setView("result");
-      window.scrollTo(0, 0);
-    } catch {
-      const { score, hook } = getCompatibility(isoDob1, isoDob2);
-      setResult({
-        name1: name1.trim(), name2: name2.trim(),
-        dob1: isoDob1, dob2: isoDob2,
-        score, hook,
-        claudeBody: "The full reading couldn't load — but the score and reading above are yours to keep.",
-      });
-      setView("result");
-      window.scrollTo(0, 0);
-    }
+    // Calculate score+hook client-side and show result immediately
+    const { score, hook } = getCompatibility(isoDob1, isoDob2);
+    setResult({
+      name1: name1.trim(), name2: name2.trim(),
+      dob1: isoDob1, dob2: isoDob2, email: email.trim(),
+      score, hook,
+    });
     setLoading(false);
-  }
-
-  // ── result URL / share ───────────────────────────────────────────────────
-
-  const resultUrl = result && typeof window !== "undefined"
-    ? `${window.location.origin}/compatibility?${new URLSearchParams({
-        name: result.name1, dob: result.dob1,
-        name2: result.name2, dob2: result.dob2,
-      }).toString()}`
-    : "";
-
-  const shareText = result
-    ? `${result.name1} & ${result.name2} — ${result.score}% compatible\n"${result.hook}"\nusunse.com/compatibility`
-    : "";
-
-  // ── generating screen ────────────────────────────────────────────────────
-
-  if (view === "generating") {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-4">
-        <div className="flex flex-col items-center gap-6 text-center max-w-xs">
-          <div className="flex flex-col items-center leading-none gap-0.5">
-            <span className="text-lg font-bold gradient-text">US</span>
-            <span className="text-base font-bold gradient-text">NE</span>
-          </div>
-          <div className="w-8 h-8 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
-          <p className="text-sm text-muted/70 animate-pulse">{warmMsg}</p>
-        </div>
-      </main>
-    );
+    window.scrollTo(0, 0);
+    // Claude body will be fetched by the useEffect above
   }
 
   // ── result screen ────────────────────────────────────────────────────────
 
-  if (view === "result" && result) {
+  if (result) {
+    const resultUrl = typeof window !== "undefined"
+      ? `${window.location.origin}/compatibility?${new URLSearchParams({
+          name: result.name1, dob: result.dob1,
+          name2: result.name2, dob2: result.dob2,
+        }).toString()}`
+      : "";
+    const shareText = `${result.name1} & ${result.name2} — ${result.score}% compatible\n"${result.hook}"\nusunse.com/compatibility`;
+
     return (
       <main className="min-h-screen px-4 py-10 relative overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-accent/6 rounded-full blur-[100px] pointer-events-none" />
@@ -296,7 +184,7 @@ function CompatibilityContent() {
         <div className="relative z-10 max-w-sm mx-auto space-y-8">
           {/* Header */}
           <div className="flex justify-between items-center">
-            <a href="/" className="text-muted hover:text-text transition-colors text-sm">← Back</a>
+            <button onClick={() => { setResult(null); setClaudeBody(null); claudeCalled.current = false; }} className="text-muted hover:text-text transition-colors text-sm">← Back</button>
             <div className="flex flex-col items-center leading-none gap-0">
               <span className="text-sm font-bold gradient-text">US</span>
               <span className="text-xs font-bold gradient-text">NE</span>
@@ -321,16 +209,25 @@ function CompatibilityContent() {
           </p>
 
           {/* Claude body */}
-          <p className="text-sm text-text/75 leading-relaxed text-center">
-            {result.claudeBody}
-          </p>
+          {claudeLoading && (
+            <div className="space-y-2">
+              <div className="h-3 bg-white/5 rounded-full animate-pulse w-full" />
+              <div className="h-3 bg-white/5 rounded-full animate-pulse w-5/6" />
+              <div className="h-3 bg-white/5 rounded-full animate-pulse w-4/5" />
+              <div className="h-3 bg-white/5 rounded-full animate-pulse w-full" />
+            </div>
+          )}
+          {!claudeLoading && claudeBody && (
+            <p className="text-sm text-text/75 leading-relaxed text-center">{claudeBody}</p>
+          )}
 
           {/* Share */}
           <button
             onClick={() => setShareOpen(true)}
+            disabled={claudeLoading}
             className="w-full py-4 rounded-xl font-semibold text-sm tracking-wide
               bg-gradient-to-r from-accent to-accent-2 text-white
-              hover:opacity-90 active:scale-[0.98] transition-all"
+              hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all"
           >
             Share My Result
           </button>
@@ -424,10 +321,10 @@ function CompatibilityContent() {
               bg-gradient-to-r from-accent to-accent-2 text-white
               hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
               shadow-lg shadow-accent/20">
-            {loading ? "Checking…" : "$1 — See Our Compatibility"}
+            {loading ? "Checking…" : "See Our Compatibility →"}
           </button>
 
-          <p className="text-center text-xs text-muted">One-time · Secure checkout via Stripe</p>
+          <p className="text-center text-xs text-muted">Free · No sign-up required</p>
         </form>
       </div>
     </main>
