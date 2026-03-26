@@ -79,12 +79,13 @@ export function getYearPillar(year: number): Pillar {
 }
 
 export function getMonthPillar(year: number, month: number): Pillar {
-  // Month pillar stem depends on year stem
+  // Month pillar stem depends on year stem (grouped in 5: 甲/己, 乙/庚, 丙/辛, 丁/壬, 戊/癸)
   const yearStemIdx = (EPOCH_STEM + (year - EPOCH_YEAR)) % 10;
-  // Yang year starts month stems at index 2 (丙), yin year at 4 (戊), etc.
-  const monthStemBase = ((Math.floor(yearStemIdx / 2)) * 2 + 2) % 10;
-  const monthStemIdx = (monthStemBase + (month - 1)) % 10;
-  const monthBranchIdx = (MONTH_BRANCH_OFFSET + (month - 1)) % 12;
+  const monthStemBase = ((yearStemIdx % 5) * 2 + 2) % 10;
+  // Saju month index: 寅月 (Feb) = 0, 卯月 (Mar) = 1, ... 丑月 (Jan) = 11
+  const sajaMonthIdx = (month - 2 + 12) % 12;
+  const monthStemIdx = (monthStemBase + sajaMonthIdx) % 10;
+  const monthBranchIdx = (MONTH_BRANCH_OFFSET + sajaMonthIdx) % 12;
   const stem = HEAVENLY_STEMS[monthStemIdx];
   const branch = EARTHLY_BRANCHES[monthBranchIdx];
   return {
@@ -110,10 +111,10 @@ export function getDayPillar(year: number, month: number, day: number): Pillar {
     Math.floor(y / 400) -
     32045;
 
-  // Reference: JDN 2415021 = Jan 1, 1900 = 甲子 (stem 0, branch 0)
+  // Reference: JDN 2415021 = Jan 1, 1900 = 甲戌 (stem 0, branch 10)
   const REF_JDN = 2415021;
-  const REF_STEM = 0; // 甲
-  const REF_BRANCH = 0; // 子
+  const REF_STEM = 0;  // 甲
+  const REF_BRANCH = 10; // 戌
 
   const diff = jdn - REF_JDN;
   const stemIdx = ((REF_STEM + diff) % 10 + 10) % 10;
@@ -142,8 +143,8 @@ export function getHourPillar(
   const dayStemIdx = HEAVENLY_STEMS.findIndex(
     (s) => s.char === dayPillar.heavenlyStem
   );
-  // Hour stem base depends on day stem
-  const hourStemBase = ((Math.floor(dayStemIdx / 2)) * 2) % 10;
+  // Hour stem base depends on day stem (grouped in 5: 甲/己→甲, 乙/庚→丙, 丙/辛→戊, 丁/壬→庚, 戊/癸→壬)
+  const hourStemBase = (dayStemIdx % 5) * 2;
   const hourStemIdx = (hourStemBase + hourBranchIdx) % 10;
 
   const stem = HEAVENLY_STEMS[hourStemIdx];
