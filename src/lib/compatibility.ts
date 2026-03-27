@@ -90,12 +90,12 @@ function pairMatch(pairs: [string, string][], a: string, b: string): boolean {
 // ── score bands ───────────────────────────────────────────────────────────────
 
 const BANDS = [
-  { min: 75,   percentage: 100, type: "Perfect Union", hook: "Rare. The charts rarely agree like this." },
-  { min: 60,   percentage: 95,  type: "Soul Match",    hook: "You already knew, didn't you." },
-  { min: 35,   percentage: 80,  type: "Deep Bond",     hook: "This kind of connection doesn't happen often." },
-  { min: 10,   percentage: 60,  type: "Solid Pair",    hook: "You make each other better without trying." },
-  { min: -15,  percentage: 40,  type: "Growth Pair",   hook: "Something is being built here. You just can't see it yet." },
-  { min: -999, percentage: 20,  type: "Tension Pair",  hook: "You challenge each other in ways that feel personal." },
+  { min: 75,   percentage: 100, type: "Perfect Union", hook: "The universe didn't accident this." },
+  { min: 60,   percentage: 95,  type: "Soul Match",    hook: "Some people find each other. You two were placed." },
+  { min: 35,   percentage: 80,  type: "Deep Bond",     hook: "Not fate. Better. A choice that keeps proving itself right." },
+  { min: 10,   percentage: 60,  type: "Solid Pair",    hook: "Not perfect. But it works." },
+  { min: -15,  percentage: 40,  type: "Growth Pair",   hook: "You won't always be easy for each other. That's the point." },
+  { min: -999, percentage: 20,  type: "Tension Pair",  hook: "You bring out something in each other. Not sure it's the best something." },
 ];
 
 // ── public API ────────────────────────────────────────────────────────────────
