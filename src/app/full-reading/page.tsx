@@ -1,0 +1,687 @@
+"use client";
+
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import Script from "next/script";
+
+// ── constants ─────────────────────────────────────────────────────────────────
+
+const STEM_COLOR: Record<string, string> = {
+  "甲": "#4CAF50", "乙": "#4CAF50",
+  "丙": "#D85A30", "丁": "#D85A30",
+  "戊": "#BA7517", "己": "#BA7517",
+  "庚": "#888780", "辛": "#888780",
+  "壬": "#378ADD", "癸": "#378ADD",
+};
+
+const BRANCH_COLOR: Record<string, string> = {
+  "子": "#378ADD", "亥": "#378ADD",
+  "寅": "#4CAF50", "卯": "#4CAF50",
+  "巳": "#D85A30", "午": "#D85A30",
+  "丑": "#BA7517", "辰": "#BA7517", "未": "#BA7517", "戌": "#BA7517",
+  "申": "#888780", "酉": "#888780",
+};
+
+const POLARITY_MAP: Record<string, string> = {
+  "甲": "yang", "乙": "yin", "丙": "yang", "丁": "yin", "戊": "yang",
+  "己": "yin", "庚": "yang", "辛": "yin", "壬": "yang", "癸": "yin",
+  "子": "yang", "丑": "yin", "寅": "yang", "卯": "yin", "辰": "yang",
+  "巳": "yin", "午": "yang", "未": "yin", "申": "yang", "酉": "yin",
+  "戌": "yang", "亥": "yin",
+};
+
+const EL_META: Record<string, { kr: string; en: string; color: string }> = {
+  wood:  { kr: "나무", en: "Wood",  color: "#4CAF50" },
+  fire:  { kr: "불",  en: "Fire",  color: "#D85A30" },
+  earth: { kr: "흙",  en: "Earth", color: "#BA7517" },
+  metal: { kr: "금",  en: "Metal", color: "#888780" },
+  water: { kr: "물",  en: "Water", color: "#378ADD" },
+};
+
+const ELEMENTS = ["wood", "fire", "earth", "metal", "water"] as const;
+
+const CARD_META = [
+  { title: "사주원국 Your Chart",     subtitle: "",                  bg: "bg-transparent" },
+  { title: "Who You Are",             subtitle: "나는 어떤 사람인가",  bg: "bg-purple-950/20" },
+  { title: "Love",                    subtitle: "사랑과 관계",        bg: "bg-pink-950/20" },
+  { title: "Work & Talent",           subtitle: "일과 재능",          bg: "bg-blue-950/20" },
+  { title: "Money",                   subtitle: "돈과 재물",          bg: "bg-emerald-950/20" },
+  { title: "How You Thrive",          subtitle: "내가 빛나는 조건",    bg: "bg-amber-950/20" },
+];
+
+// ── types ─────────────────────────────────────────────────────────────────────
+
+interface PillarData {
+  stem: string;
+  branch: string;
+  element: string;
+  polarity: string;
+}
+
+interface Pillars {
+  year: PillarData;
+  month: PillarData;
+  day: PillarData;
+  hour: PillarData | null;
+}
+
+interface Reading {
+  name: string;
+  email: string;
+  dob: string;
+  pillars: Pillars;
+  sajuJson: string;
+}
+
+type CardStatus =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "done"; text: string }
+  | { state: "error" };
+
+// ── google places types ────────────────────────────────────────────────────────
+
+declare global {
+  interface Window {
+    google?: {
+      maps: {
+        places: {
+          Autocomplete: new (el: HTMLInputElement, opts: object) => {
+            addListener: (event: string, cb: () => void) => void;
+            getPlace: () => {
+              geometry?: { location?: { lat: () => number; lng: () => number } };
+              formatted_address?: string;
+            };
+          };
+        };
+      };
+    };
+    mapsReady?: boolean;
+    onMapsLoad?: () => void;
+  }
+}
+
+// ── form screen ───────────────────────────────────────────────────────────────
+
+function FormScreen({ onSubmit }: { onSubmit: (data: {
+  name: string; email: string;
+  birthYear: number; birthMonth: number; birthDay: number;
+  birthHour: number | null; birthMinute: number | null;
+  birthCity: string; latitude: number | null; longitude: number | null;
+}) => void }) {
+  const [name, setName]   = useState("");
+  const [email, setEmail] = useState("");
+  const [year, setYear]   = useState("");
+  const [month, setMonth] = useState("");
+  const [day, setDay]     = useState("");
+  const [time, setTime]   = useState("");
+  const [city, setCity]   = useState("");
+  const [lat, setLat]     = useState<number | null>(null);
+  const [lng, setLng]     = useState<number | null>(null);
+  const [error, setError] = useState("");
+  const cityRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const acRef = useRef<any>(null);
+
+  useEffect(() => {
+    const n = localStorage.getItem("usunse_name")  || "";
+    const d = localStorage.getItem("usunse_dob")   || "";
+    const e = localStorage.getItem("usunse_email") || "";
+    if (n) setName(n);
+    if (e) setEmail(e);
+    if (d) {
+      const parts = d.split("-");
+      if (parts.length === 3) { setYear(parts[0]); setMonth(String(parseInt(parts[1]))); setDay(String(parseInt(parts[2]))); }
+    }
+  }, []);
+
+  const initAutocomplete = useCallback(() => {
+    if (!cityRef.current || !window.google) return;
+    const ac = new window.google.maps.places.Autocomplete(cityRef.current, { types: ["(cities)"] });
+    acRef.current = ac;
+    ac.addListener("place_changed", () => {
+      const place = ac.getPlace();
+      if (place.geometry?.location) {
+        setLat(place.geometry.location.lat());
+        setLng(place.geometry.location.lng());
+        setCity(place.formatted_address || cityRef.current?.value || "");
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (window.mapsReady) initAutocomplete();
+    window.onMapsLoad = initAutocomplete;
+    return () => { window.onMapsLoad = undefined; };
+  }, [initAutocomplete]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!name.trim())  { setError("Enter your name."); return; }
+    const y = parseInt(year), m = parseInt(month), d = parseInt(day);
+    if (!y || y < 1920 || y > new Date().getFullYear() - 5) { setError("Enter a valid birth year."); return; }
+    if (!m || m < 1 || m > 12)  { setError("Select your birth month."); return; }
+    if (!d || d < 1 || d > 31)  { setError("Select your birth day."); return; }
+    if (!city.trim())  { setError("Select your birth city."); return; }
+    if (!lat || !lng)  { setError("Please select a city from the dropdown."); return; }
+    if (!email.trim() || !email.includes("@")) { setError("Enter a valid email."); return; }
+
+    let birthHour: number | null = null;
+    let birthMinute: number | null = null;
+    if (time) {
+      const [h, min] = time.split(":").map(Number);
+      birthHour = h; birthMinute = min;
+    }
+
+    const dob = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    localStorage.setItem("usunse_name",  name.trim());
+    localStorage.setItem("usunse_dob",   dob);
+    localStorage.setItem("usunse_email", email.trim());
+
+    onSubmit({ name: name.trim(), email: email.trim(), birthYear: y, birthMonth: m, birthDay: d, birthHour, birthMinute, birthCity: city, latitude: lat, longitude: lng });
+  }
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1919 }, (_, i) => currentYear - 5 - i);
+
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden">
+      <Script
+        src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&callback=onMapsLoad`}
+        strategy="afterInteractive"
+        onLoad={() => { window.mapsReady = true; initAutocomplete(); }}
+      />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[350px] bg-accent/6 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-sm mx-auto flex flex-col gap-8">
+        <a href="/" className="text-muted hover:text-text transition-colors text-sm self-start">← Back</a>
+
+        <div className="text-center space-y-2">
+          <div className="flex flex-col items-center leading-none gap-0.5 mb-4">
+            <span className="text-lg font-bold gradient-text">US</span>
+            <span className="text-base font-bold gradient-text">NE</span>
+          </div>
+          <h1 className="text-2xl font-display font-bold text-text leading-tight">Full Destiny Reading</h1>
+          <p className="text-sm text-muted leading-relaxed">
+            Your complete chart — who you are, love, career, money, and what makes you thrive.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="w-full space-y-5">
+          {/* Name */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Your Name</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="Enter your name" autoComplete="off"
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+          </div>
+
+          {/* Date of Birth */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Date of Birth</label>
+            <div className="flex gap-2">
+              <select value={month} onChange={e => setMonth(e.target.value)}
+                className="flex-1 bg-surface border border-border rounded-xl px-3 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none text-sm">
+                <option value="">Month</option>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1} className="bg-surface">
+                    {String(i + 1).padStart(2, "0")}
+                  </option>
+                ))}
+              </select>
+              <select value={day} onChange={e => setDay(e.target.value)}
+                className="flex-1 bg-surface border border-border rounded-xl px-3 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none text-sm">
+                <option value="">Day</option>
+                {Array.from({ length: 31 }, (_, i) => (
+                  <option key={i + 1} value={i + 1} className="bg-surface">{String(i + 1).padStart(2, "0")}</option>
+                ))}
+              </select>
+              <select value={year} onChange={e => setYear(e.target.value)}
+                className="flex-[1.4] bg-surface border border-border rounded-xl px-3 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none text-sm">
+                <option value="">Year</option>
+                {years.map(y => (
+                  <option key={y} value={y} className="bg-surface">{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Birth Time */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">
+              Birth Time <span className="text-muted/60 normal-case">(optional)</span>
+            </label>
+            <input type="time" value={time} onChange={e => setTime(e.target.value)}
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text focus:outline-none focus:border-accent transition-colors [color-scheme:dark]" />
+            <p className="text-xs text-muted/50 mt-1.5">Used to calculate your hour pillar with solar time correction.</p>
+          </div>
+
+          {/* Birth City */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Birth City</label>
+            <input
+              ref={cityRef}
+              type="text"
+              value={city}
+              onChange={e => { setCity(e.target.value); setLat(null); setLng(null); }}
+              placeholder="Search city…"
+              autoComplete="off"
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+            />
+            <p className="text-xs text-muted/50 mt-1.5">Used for solar time correction based on longitude.</p>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Your Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com" autoComplete="email"
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+            <p className="text-xs text-muted/50 mt-1.5">Your reading will be saved to this email.</p>
+          </div>
+
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+
+          <button type="submit"
+            className="w-full py-4 rounded-xl font-semibold text-base tracking-wide transition-all duration-200
+              bg-gradient-to-r from-accent to-accent-2 text-white
+              hover:opacity-90 active:scale-[0.98] shadow-lg shadow-accent/20">
+            See My Full Reading →
+          </button>
+
+          <p className="text-center text-xs text-muted">$10 · One-time · Full 6-card reading</p>
+        </form>
+      </div>
+    </main>
+  );
+}
+
+// ── loading screen ─────────────────────────────────────────────────────────────
+
+function LoadingScreen({ message }: { message?: string }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+      <div className="flex flex-col items-center leading-none gap-0">
+        <span className="text-sm font-bold gradient-text animate-pulse">US</span>
+        <span className="text-xs font-bold gradient-text animate-pulse">NE</span>
+      </div>
+      <p className="text-sm text-muted animate-pulse">{message ?? "Reading your chart…"}</p>
+    </div>
+  );
+}
+
+// ── card 1: your chart ─────────────────────────────────────────────────────────
+
+function computeChartStats(pillars: Pillars) {
+  const cols = [pillars.year, pillars.month, pillars.day, ...(pillars.hour ? [pillars.hour] : [])];
+  const chars = cols.flatMap(p => [p.stem, p.branch]);
+  const yang = chars.filter(c => POLARITY_MAP[c] === "yang").length;
+  const yin  = chars.filter(c => POLARITY_MAP[c] === "yin").length;
+
+  const BRANCH_ELEMENT: Record<string, string> = {
+    "子": "water", "亥": "water", "寅": "wood", "卯": "wood",
+    "巳": "fire",  "午": "fire",  "丑": "earth","辰": "earth", "未": "earth", "戌": "earth",
+    "申": "metal", "酉": "metal",
+  };
+  const STEM_ELEMENT: Record<string, string> = {
+    "甲": "wood", "乙": "wood", "丙": "fire", "丁": "fire", "戊": "earth",
+    "己": "earth","庚": "metal","辛": "metal","壬": "water","癸": "water",
+  };
+
+  const counts: Record<string, number> = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
+  for (const p of cols) {
+    counts[STEM_ELEMENT[p.stem]]++;
+    const be = BRANCH_ELEMENT[p.branch];
+    if (be) counts[be]++;
+  }
+  return { yang, yin, counts };
+}
+
+function ChartCard({ pillars, name }: { pillars: Pillars; name: string }) {
+  const { yang, yin, counts } = computeChartStats(pillars);
+  const total = yang + yin;
+  const elTotal = Object.values(counts).reduce((a, b) => a + b, 0);
+  const cols = [
+    { label: "년 Year",  pillar: pillars.year,  isMe: false },
+    { label: "월 Month", pillar: pillars.month, isMe: false },
+    { label: "일 Day",   pillar: pillars.day,   isMe: true  },
+    { label: "시 Hour",  pillar: pillars.hour,  isMe: false },
+  ];
+
+  return (
+    <div className="px-4 py-8 space-y-8">
+      <div className="text-center">
+        <h2 className="text-sm font-semibold gradient-text uppercase tracking-widest">사주원국 Your Chart</h2>
+        <p className="text-xs text-muted/60 mt-1">{name}</p>
+      </div>
+
+      {/* Four pillars grid */}
+      <div className="flex gap-2 justify-center">
+        {cols.map(({ label, pillar, isMe }) => (
+          <div key={label} className="relative flex flex-col items-center bg-surface border border-border rounded-xl px-3 py-4 min-w-[70px] flex-1 max-w-[80px]">
+            {isMe && (
+              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-accent text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                나 Me
+              </span>
+            )}
+            <span className="text-[10px] text-muted/60 mb-3 leading-none">{label}</span>
+            {pillar ? (
+              <>
+                <span className="text-3xl font-bold leading-none" style={{ color: STEM_COLOR[pillar.stem] ?? "#e2e8f0" }}>
+                  {pillar.stem}
+                </span>
+                <span className="text-3xl font-bold leading-none mt-2" style={{ color: BRANCH_COLOR[pillar.branch] ?? "#e2e8f0" }}>
+                  {pillar.branch}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-3xl font-bold leading-none text-white/10">—</span>
+                <span className="text-3xl font-bold leading-none mt-2 text-white/10">—</span>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Yin-Yang bar */}
+      <div className="space-y-3">
+        <p className="text-xs text-muted/60 uppercase tracking-widest text-center">음양 Yin &amp; Yang</p>
+        <div className="h-5 rounded-full overflow-hidden flex">
+          <div
+            className="flex items-center justify-end pr-2 transition-all duration-700"
+            style={{ width: `${(yang / total) * 100}%`, background: "#D85A30" }}
+          >
+            {yang > 0 && <span className="text-[10px] text-white font-bold">陽</span>}
+          </div>
+          <div
+            className="flex items-center pl-2 transition-all duration-700"
+            style={{ width: `${(yin / total) * 100}%`, background: "#3D4F60" }}
+          >
+            {yin > 0 && <span className="text-[10px] text-white font-bold">陰</span>}
+          </div>
+        </div>
+        <div className="flex justify-between text-xs text-muted/60">
+          <span>양 Yang · {yang} · {Math.round((yang / total) * 100)}%</span>
+          <span>{Math.round((yin / total) * 100)}% · {yin} · 음 Yin</span>
+        </div>
+      </div>
+
+      {/* Five elements */}
+      <div className="space-y-3">
+        <p className="text-xs text-muted/60 uppercase tracking-widest text-center">오행 분포 Five Elements</p>
+        <div className="space-y-2">
+          {ELEMENTS.map(el => {
+            const meta  = EL_META[el];
+            const count = counts[el] ?? 0;
+            const pct   = elTotal > 0 ? (count / elTotal) * 100 : 0;
+            return (
+              <div key={el} className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: meta.color }} />
+                <span className="text-xs text-muted/80 w-14 flex-shrink-0">{meta.kr} {meta.en}</span>
+                <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: meta.color }} />
+                </div>
+                <span className="text-xs text-muted/60 w-4 text-right flex-shrink-0">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── claude card ────────────────────────────────────────────────────────────────
+
+function ClaudeCard({ cardIndex, status }: { cardIndex: number; status: CardStatus }) {
+  const meta = CARD_META[cardIndex];
+
+  return (
+    <div className={`px-4 py-8 space-y-6 ${meta.bg}`}>
+      <div className="text-center">
+        <h2 className="text-lg font-display font-bold text-text">{meta.title}</h2>
+        {meta.subtitle && <p className="text-xs text-muted/60 mt-1">{meta.subtitle}</p>}
+      </div>
+
+      {status.state === "loading" && (
+        <div className="space-y-3 mt-4">
+          {[1, 0.9, 0.8, 1, 0.85, 0.7, 0.95, 0.75].map((w, i) => (
+            <div key={i} className="h-3 bg-white/5 rounded-full animate-pulse" style={{ width: `${w * 100}%` }} />
+          ))}
+        </div>
+      )}
+
+      {status.state === "idle" && (
+        <p className="text-xs text-muted/50 text-center animate-pulse">Preparing your reading…</p>
+      )}
+
+      {status.state === "error" && (
+        <p className="text-xs text-red-400/70 text-center">Reading failed to load. Check back soon.</p>
+      )}
+
+      {status.state === "done" && (
+        <div className="space-y-4">
+          {status.text.split(/\n\n+/).filter(Boolean).map((para, i) => (
+            <p key={i} className="text-sm text-text/80 leading-relaxed">{para}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── card deck ──────────────────────────────────────────────────────────────────
+
+function CardDeck({ reading, onEmailSave }: {
+  reading: Reading;
+  onEmailSave: () => void;
+}) {
+  const [activeCard, setActiveCard]   = useState(0);
+  const [statuses, setStatuses]       = useState<CardStatus[]>(
+    Array.from({ length: 6 }, (_, i) => (i === 0 ? { state: "idle" } : { state: "idle" }))
+  );
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailDone, setEmailDone]       = useState(false);
+  const deckRef = useRef<HTMLDivElement>(null);
+  const loadedRef = useRef<Set<number>>(new Set());
+
+  const loadCard = useCallback(async (index: number) => {
+    if (index < 1 || index > 5) return;
+    if (loadedRef.current.has(index)) return;
+    loadedRef.current.add(index);
+
+    setStatuses(prev => {
+      const next = [...prev];
+      next[index] = { state: "loading" };
+      return next;
+    });
+    try {
+      const res = await fetch("/api/full-reading-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardIndex: index, name: reading.name, sajuJson: reading.sajuJson }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const { text } = await res.json();
+      setStatuses(prev => {
+        const next = [...prev];
+        next[index] = { state: "done", text };
+        return next;
+      });
+    } catch {
+      setStatuses(prev => {
+        const next = [...prev];
+        next[index] = { state: "error" };
+        return next;
+      });
+    }
+  }, [reading.name, reading.sajuJson]);
+
+  // Load card 1 immediately when deck mounts
+  useEffect(() => { loadCard(1); }, [loadCard]);
+
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    const newCard = Math.round(el.scrollLeft / el.clientWidth);
+    if (newCard !== activeCard) {
+      setActiveCard(newCard);
+      if (newCard + 1 <= 5) loadCard(newCard + 1);
+    }
+  }
+
+  function scrollTo(index: number) {
+    deckRef.current?.scrollTo({ left: index * (deckRef.current.clientWidth), behavior: "smooth" });
+  }
+
+  async function handleEmailSave() {
+    setEmailSending(true);
+    const cards = statuses.map(s => (s.state === "done" ? s.text : null));
+    try {
+      await fetch("/api/full-reading-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: reading.email, name: reading.name, cards }),
+      });
+    } catch { /* best-effort */ }
+    setEmailSending(false);
+    setEmailDone(true);
+    onEmailSave();
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col relative">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-accent/6 rounded-full blur-[100px] pointer-events-none" />
+
+      {/* Header */}
+      <div className="flex justify-between items-center px-4 pt-6 pb-2 relative z-10 flex-shrink-0">
+        <div className="flex flex-col items-center leading-none gap-0">
+          <span className="text-sm font-bold gradient-text">US</span>
+          <span className="text-xs font-bold gradient-text">NE</span>
+        </div>
+        <p className="text-xs text-muted/60">{reading.name} · {reading.dob}</p>
+        <span className="text-xs text-muted/40">{activeCard + 1} / 6</span>
+      </div>
+
+      {/* Swipeable deck */}
+      <div
+        ref={deckRef}
+        className="flex-1 flex overflow-x-auto relative z-10"
+        style={{
+          scrollSnapType: "x mandatory",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        } as React.CSSProperties}
+        onScroll={handleScroll}
+      >
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <div
+            key={i}
+            style={{ scrollSnapAlign: "start", flexShrink: 0, width: "100%", overflowY: "auto" }}
+          >
+            {i === 0
+              ? <ChartCard pillars={reading.pillars} name={reading.name} />
+              : <ClaudeCard cardIndex={i} status={statuses[i]} />
+            }
+
+            {/* Email save button on last card */}
+            {i === 5 && (
+              <div className="px-4 pb-8 mt-4">
+                <button
+                  onClick={handleEmailSave}
+                  disabled={emailSending || emailDone}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold border border-white/10 text-muted/80 hover:border-white/20 hover:text-text transition-all disabled:opacity-50"
+                >
+                  {emailDone ? "✓ Saved to your email" : emailSending ? "Sending…" : "📩 내 이메일로 저장하기  Save to my email"}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-2 py-4 flex-shrink-0 relative z-10">
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <button
+            key={i}
+            onClick={() => scrollTo(i)}
+            className={`rounded-full transition-all duration-300 ${
+              i === activeCard
+                ? "w-6 h-2 bg-accent"
+                : "w-2 h-2 bg-white/20 hover:bg-white/40"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── main content ───────────────────────────────────────────────────────────────
+
+function FullReadingContent() {
+  const [step, setStep]       = useState<"form" | "loading" | "reading">("form");
+  const [reading, setReading] = useState<Reading | null>(null);
+  const [loadMsg, setLoadMsg] = useState("Reading your chart…");
+
+  async function handleFormSubmit(data: {
+    name: string; email: string;
+    birthYear: number; birthMonth: number; birthDay: number;
+    birthHour: number | null; birthMinute: number | null;
+    birthCity: string; latitude: number | null; longitude: number | null;
+  }) {
+    setStep("loading");
+    setLoadMsg("Calculating your chart…");
+
+    try {
+      const res = await fetch("/api/full-reading-saju", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email:      data.email,
+          name:       data.name,
+          birthYear:  data.birthYear,
+          birthMonth: data.birthMonth,
+          birthDay:   data.birthDay,
+          birthHour:  data.birthHour,
+          birthMinute: data.birthMinute,
+          latitude:   data.latitude,
+          longitude:  data.longitude,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Saju API failed");
+      const { pillars, sajuData } = await res.json();
+
+      const dob = `${data.birthYear}-${String(data.birthMonth).padStart(2, "0")}-${String(data.birthDay).padStart(2, "0")}`;
+
+      setReading({
+        name:     data.name,
+        email:    data.email,
+        dob,
+        pillars,
+        sajuJson: JSON.stringify(sajuData),
+      });
+      setStep("reading");
+      window.scrollTo(0, 0);
+    } catch {
+      setLoadMsg("Something went wrong. Please try again.");
+      setTimeout(() => setStep("form"), 2000);
+    }
+  }
+
+  if (step === "form")    return <FormScreen onSubmit={handleFormSubmit} />;
+  if (step === "loading") return <LoadingScreen message={loadMsg} />;
+  if (step === "reading" && reading) return <CardDeck reading={reading} onEmailSave={() => {}} />;
+  return <LoadingScreen />;
+}
+
+export default function FullReadingPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <FullReadingContent />
+    </Suspense>
+  );
+}
