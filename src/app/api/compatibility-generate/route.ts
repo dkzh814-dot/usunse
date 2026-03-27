@@ -24,21 +24,30 @@ export async function POST(req: NextRequest) {
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 600,
-      system: "You write short, precise compatibility readings for a modern astrology product. Your tone is like a wise friend — warm, direct, a little literary. You never use generic romance advice.",
+      max_tokens: 700,
+      system: "You are writing a compatibility reading for UsUnse, a Korean astrology service. Tone: magazine column. Warm, specific, human. Short punchy sentences. Never use Saju or astrology terminology. Never mention elements (Wood, Fire, Earth, Metal, Water). Never be vague or abstract. Every sentence must describe a concrete situation or behavior. Do not write a hook line. Do not write a title. Start directly with paragraph 1.",
       messages: [{
         role: "user",
-        content: `${name1} and ${name2} received a compatibility reading: ${percentage}% — ${type}.
-Hook shown to them: "${hook}"
+        content: `Person 1: ${name1}
+Person 2: ${name2}
+Compatibility: ${type} — ${percentage}%
 
-Write exactly 4 short paragraphs expanding on this reading.
-Total 100–140 words across all 4 paragraphs.
-Each paragraph is 1–2 sentences.
-Use their names naturally.
-Do not mention elements (Wood, Fire, Earth, Metal, Water), saju, pillars, or astrology terms.
-Do not repeat the hook word for word.
-Make both people feel specifically seen — not generic.
-No clichés. No "journey" or "balance" or "energy".`,
+Write exactly 4 paragraphs. Plain text only — no headers, no bullet points, no bold.
+
+Paragraph 1 — What happens when ${name1} and ${name2} are in the same room. Describe the specific atmosphere they create together. What a third person walking in would notice. What shifts. Be concrete, not abstract.
+
+Paragraph 2 — How ${name1} behaves around ${name2}. How ${name1} is different in ${name2}'s presence compared to everyone else. What ${name1} does without realizing it — a habit, a pattern, something unconscious.
+
+Paragraph 3 — How ${name2} behaves around ${name1}. How ${name2} is different in ${name1}'s presence compared to everyone else. What ${name2} does without realizing it — a habit, a pattern, something unconscious.
+
+Paragraph 4 — The nature of this relationship in one sentence. Then end with a tagline in quotation marks.
+
+Rules:
+- Each paragraph: 2–4 sentences
+- Total: 120–160 words
+- No sentence may start with 'They'
+- Never use the words: connection, energy, vibe, compatibility, balance, journey
+- Make ${name1} and ${name2} feel like real specific people, not archetypes`,
       }],
     });
 
