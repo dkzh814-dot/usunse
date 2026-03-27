@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { getCompatibilityResult, compatDocId } from "@/lib/compatibility";
+import { getCompatibilityResult } from "@/lib/compatibility";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
-    const { name1, dob1, name2, dob2, email } = await req.json();
+    const { name1, dob1, name2, dob2 } = await req.json();
 
     if (!dob1 || !dob2) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 });
@@ -20,7 +18,7 @@ export async function POST(req: NextRequest) {
     //   return NextResponse.json({ error: "Payment not confirmed" }, { status: 402 });
     // }
 
-    const { rawScore, percentage, type, hook } = getCompatibilityResult(dob1, dob2);
+    const { percentage, type, hook } = getCompatibilityResult(dob1, dob2);
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
@@ -53,21 +51,6 @@ Rules:
 
     const claudeBody =
       message.content[0].type === "text" ? message.content[0].text : "";
-
-    // Save to Firestore (best-effort)
-    if (email) {
-      try {
-        const docId = compatDocId(email, dob1, dob2);
-        await setDoc(doc(db, "compatibility_results", docId), {
-          email,
-          name1: name1 || "", dob1,
-          name2: name2 || "", dob2,
-          rawScore, percentage, type, hook,
-          claudeBody,
-          createdAt: serverTimestamp(),
-        });
-      } catch { /* don't block */ }
-    }
 
     return NextResponse.json({ percentage, type, hook, claudeBody });
   } catch (err) {

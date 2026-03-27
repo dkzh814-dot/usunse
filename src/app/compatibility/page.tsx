@@ -1,9 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { getCompatibilityResult, compatDocId, CompatResult } from "@/lib/compatibility";
+import { getCompatibilityResult, CompatResult } from "@/lib/compatibility";
 import ScoreRing from "@/components/ScoreRing";
 import CompatibilityShareModal from "@/components/CompatibilityShareModal";
 
@@ -180,31 +178,9 @@ function CompatibilityContent() {
     setStep("modal");
   }
 
-  // ── confirm: cache check → show result ──────────────────────────────────────
+  // ── confirm: compute score and show result ───────────────────────────────────
 
-  async function handleConfirm() {
-    setStep("loading");
-
-    // Check Firestore cache
-    try {
-      const docId = compatDocId(email.trim(), isoDob1, isoDob2);
-      const snap = await getDoc(doc(db, "compatibility_results", docId));
-      if (snap.exists()) {
-        const d = snap.data();
-        claudeCalled.current = true; // skip re-fetching
-        setResult({
-          name1: name1.trim(), dob1: isoDob1,
-          name2: name2.trim(), dob2: isoDob2,
-          email: email.trim(),
-          percentage: d.percentage, type: d.type, hook: d.hook,
-          claudeBody: d.claudeBody || null,
-        });
-        setStep("result");
-        window.scrollTo(0, 0);
-        return;
-      }
-    } catch { /* proceed */ }
-
+  function handleConfirm() {
     // Compute score client-side and show result immediately
     const compat: CompatResult = getCompatibilityResult(isoDob1, isoDob2);
     setResult({
