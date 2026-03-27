@@ -1,10 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { getCompatibility, compatDocId } from "@/lib/compatibility";
+import { doc, getDoc } from "firebase/firestore";
+import { getCompatibilityResult, compatDocId, CompatResult } from "@/lib/compatibility";
 import ScoreRing from "@/components/ScoreRing";
 import CompatibilityShareModal from "@/components/CompatibilityShareModal";
 
@@ -26,52 +25,115 @@ function dobToIso(dob: string): string | null {
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
-// ── types ─────────────────────────────────────────────────────────────────────
-
-interface ResultData {
-  name1: string;
-  name2: string;
-  dob1: string;
-  dob2: string;
-  email: string;
-  score: number;
-  hook: string;
+function formatDobDisplay(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${m}/${d}/${y}`;
 }
 
-// ── main content ─────────────────────────────────────────────────────────────
+// ── types ─────────────────────────────────────────────────────────────────────
+
+type Step = "form" | "modal" | "loading" | "result";
+
+interface ResultData {
+  name1: string; dob1: string;
+  name2: string; dob2: string;
+  email: string;
+  percentage: number; type: string; hook: string;
+  claudeBody: string | null;
+}
+
+// ── confirmation modal ────────────────────────────────────────────────────────
+
+function ConfirmModal({
+  name1, dob1, name2, dob2,
+  onConfirm, onBack, loading,
+}: {
+  name1: string; dob1: string; name2: string; dob2: string;
+  onConfirm: () => void; onBack: () => void; loading: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}
+    >
+      <div className="w-full max-w-xs bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 flex flex-col gap-5">
+        <div className="text-center space-y-1">
+          <p className="text-xs uppercase tracking-widest text-muted/60">Are we compatible?</p>
+          <h2 className="text-lg font-display font-bold text-text">Confirm your reading</h2>
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface/50 p-4 flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-sm font-semibold text-text">{name1}</p>
+              <p className="text-xs text-muted/60">{formatDobDisplay(dob1)}</p>
+            </div>
+            <span className="text-accent/50 text-sm">✦</span>
+            <div className="text-right">
+              <p className="text-sm font-semibold text-text">{name2}</p>
+              <p className="text-xs text-muted/60">{formatDobDisplay(dob2)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-1">
+          <p className="text-xs text-muted/50">One-time reading</p>
+          <span className="text-lg font-black gradient-text">$1</span>
+        </div>
+
+        <button
+          onClick={onConfirm}
+          disabled={loading}
+          className="w-full py-3.5 rounded-xl font-semibold text-sm tracking-wide
+            bg-gradient-to-r from-accent to-accent-2 text-white
+            hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all"
+        >
+          {loading ? "Checking…" : "$1 — See Our Compatibility"}
+        </button>
+
+        <button onClick={onBack} className="text-center text-xs text-muted/50 hover:text-muted transition-colors">
+          ← Go back
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── main content ──────────────────────────────────────────────────────────────
 
 function CompatibilityContent() {
-  const sp = useSearchParams();
-
-  // form state
+  // form fields
   const [name1, setName1] = useState("");
-  const [dob1, setDob1] = useState("");
+  const [dob1,  setDob1]  = useState("");
   const [name2, setName2] = useState("");
-  const [dob2, setDob2] = useState("");
+  const [dob2,  setDob2]  = useState("");
   const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  // result state
+  // validated ISO dates (set when moving to modal)
+  const [isoDob1, setIsoDob1] = useState("");
+  const [isoDob2, setIsoDob2] = useState("");
+
+  const [step,  setStep]  = useState<Step>("form");
+  const [error, setError] = useState("");
+
   const [result, setResult] = useState<ResultData | null>(null);
-  const [claudeBody, setClaudeBody] = useState<string | null>(null);
   const [claudeLoading, setClaudeLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const claudeCalled = useRef(false);
 
   // auto-fill from localStorage
   useEffect(() => {
-    const savedName  = localStorage.getItem("usunse_name")  || "";
-    const savedDob   = localStorage.getItem("usunse_dob")   || "";
-    const savedEmail = localStorage.getItem("usunse_email") || "";
-    if (savedName)  setName1(savedName);
-    if (savedDob)   setDob1(savedDob);
-    if (savedEmail) setEmail(savedEmail);
+    const n = localStorage.getItem("usunse_name")  || "";
+    const d = localStorage.getItem("usunse_dob")   || "";
+    const e = localStorage.getItem("usunse_email") || "";
+    if (n) setName1(n);
+    if (d) setDob1(d);
+    if (e) setEmail(e);
   }, []);
 
-  // fetch Claude body whenever result is set (if not already loaded)
+  // fetch Claude body after result is set
   useEffect(() => {
-    if (!result || claudeCalled.current) return;
+    if (!result || claudeCalled.current || result.claudeBody !== null) return;
     claudeCalled.current = true;
     setClaudeLoading(true);
 
@@ -79,94 +141,91 @@ function CompatibilityContent() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sessionId: "bypass",
         name1: result.name1, dob1: result.dob1,
         name2: result.name2, dob2: result.dob2,
+        email: result.email,
       }),
     })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
-        setClaudeBody(data.claudeBody || null);
-        // Save to Firestore (best-effort)
-        if (result.email) {
-          const docId = compatDocId(result.email, result.dob1, result.dob2);
-          setDoc(doc(db, "compatibility_results", docId), {
-            email: result.email,
-            name1: result.name1, dob1: result.dob1,
-            name2: result.name2, dob2: result.dob2,
-            score: result.score, hook: result.hook,
-            claudeBody: data.claudeBody || "",
-            createdAt: serverTimestamp(),
-          }).catch(() => {});
-        }
+        setResult(prev => prev ? { ...prev, claudeBody: data.claudeBody || null } : prev);
       })
-      .catch(() => setClaudeBody(null))
+      .catch(() => {})
       .finally(() => setClaudeLoading(false));
   }, [result]);
 
-  // ── form submit ──────────────────────────────────────────────────────────
+  // ── validate form and open modal ────────────────────────────────────────────
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (!name1.trim())  { setError("Enter your name.");          return; }
-    if (!dob1)          { setError("Enter your date of birth."); return; }
-    if (!name2.trim())  { setError("Enter their name.");         return; }
-    if (!dob2)          { setError("Enter their date of birth."); return; }
+    if (!name1.trim())  { setError("Enter your name.");            return; }
+    if (!dob1)          { setError("Enter your date of birth.");   return; }
+    if (!name2.trim())  { setError("Enter their name.");           return; }
+    if (!dob2)          { setError("Enter their date of birth.");  return; }
     if (!email.trim() || !email.includes("@")) { setError("Enter a valid email."); return; }
 
-    const isoDob1 = dobToIso(dob1);
-    const isoDob2 = dobToIso(dob2);
-    if (!isoDob1) { setError("Check your date of birth format."); return; }
-    if (!isoDob2) { setError("Check their date of birth format."); return; }
+    const iso1 = dobToIso(dob1);
+    const iso2 = dobToIso(dob2);
+    if (!iso1) { setError("Check your date of birth format.");    return; }
+    if (!iso2) { setError("Check their date of birth format.");  return; }
 
-    setLoading(true);
     localStorage.setItem("usunse_name",  name1.trim());
     localStorage.setItem("usunse_dob",   dob1);
     localStorage.setItem("usunse_email", email.trim());
 
-    // Check Firestore cache first
+    setIsoDob1(iso1);
+    setIsoDob2(iso2);
+    setStep("modal");
+  }
+
+  // ── confirm: cache check → show result ──────────────────────────────────────
+
+  async function handleConfirm() {
+    setStep("loading");
+
+    // Check Firestore cache
     try {
       const docId = compatDocId(email.trim(), isoDob1, isoDob2);
       const snap = await getDoc(doc(db, "compatibility_results", docId));
       if (snap.exists()) {
         const d = snap.data();
-        setResult({
-          name1: name1.trim(), name2: name2.trim(),
-          dob1: isoDob1, dob2: isoDob2, email: email.trim(),
-          score: d.score, hook: d.hook,
-        });
-        setClaudeBody(d.claudeBody || null);
         claudeCalled.current = true; // skip re-fetching
-        setLoading(false);
+        setResult({
+          name1: name1.trim(), dob1: isoDob1,
+          name2: name2.trim(), dob2: isoDob2,
+          email: email.trim(),
+          percentage: d.percentage, type: d.type, hook: d.hook,
+          claudeBody: d.claudeBody || null,
+        });
+        setStep("result");
         window.scrollTo(0, 0);
         return;
       }
     } catch { /* proceed */ }
 
-    // Calculate score+hook client-side and show result immediately
-    const { score, hook } = getCompatibility(isoDob1, isoDob2);
+    // Compute score client-side and show result immediately
+    const compat: CompatResult = getCompatibilityResult(isoDob1, isoDob2);
     setResult({
-      name1: name1.trim(), name2: name2.trim(),
-      dob1: isoDob1, dob2: isoDob2, email: email.trim(),
-      score, hook,
+      name1: name1.trim(), dob1: isoDob1,
+      name2: name2.trim(), dob2: isoDob2,
+      email: email.trim(),
+      percentage: compat.percentage, type: compat.type, hook: compat.hook,
+      claudeBody: null,
     });
-    setLoading(false);
+    setStep("result");
     window.scrollTo(0, 0);
-    // Claude body will be fetched by the useEffect above
+    // Claude body will load via useEffect
   }
 
-  // ── result screen ────────────────────────────────────────────────────────
+  // ── result screen ─────────────────────────────────────────────────────────
 
-  if (result) {
+  if (step === "result" && result) {
     const resultUrl = typeof window !== "undefined"
-      ? `${window.location.origin}/compatibility?${new URLSearchParams({
-          name: result.name1, dob: result.dob1,
-          name2: result.name2, dob2: result.dob2,
-        }).toString()}`
+      ? `${window.location.origin}/compatibility`
       : "";
-    const shareText = `${result.name1} & ${result.name2} — ${result.score}% compatible\n"${result.hook}"\nusunse.com/compatibility`;
+    const shareText = `${result.name1} & ${result.name2} — ${result.percentage}% compatible\n"${result.hook}"\nusunse.com/compatibility`;
 
     return (
       <main className="min-h-screen px-4 py-10 relative overflow-hidden">
@@ -175,7 +234,7 @@ function CompatibilityContent() {
         {shareOpen && (
           <CompatibilityShareModal
             name1={result.name1} name2={result.name2}
-            score={result.score} hook={result.hook}
+            percentage={result.percentage} type={result.type} hook={result.hook}
             resultUrl={resultUrl} shareText={shareText}
             onClose={() => setShareOpen(false)}
           />
@@ -184,7 +243,10 @@ function CompatibilityContent() {
         <div className="relative z-10 max-w-sm mx-auto space-y-8">
           {/* Header */}
           <div className="flex justify-between items-center">
-            <button onClick={() => { setResult(null); setClaudeBody(null); claudeCalled.current = false; }} className="text-muted hover:text-text transition-colors text-sm">← Back</button>
+            <button
+              onClick={() => { setResult(null); setStep("form"); claudeCalled.current = false; }}
+              className="text-muted hover:text-text transition-colors text-sm"
+            >← Back</button>
             <div className="flex flex-col items-center leading-none gap-0">
               <span className="text-sm font-bold gradient-text">US</span>
               <span className="text-xs font-bold gradient-text">NE</span>
@@ -193,14 +255,21 @@ function CompatibilityContent() {
 
           {/* Names */}
           <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-lg font-semibold text-text/50 tracking-wide">{result.name1}</span>
-            <span className="text-base text-accent/60 leading-none">✦</span>
-            <h1 className="text-4xl font-display font-black gradient-text leading-tight">{result.name2}</h1>
+            <span className="text-base font-semibold text-text/60">{result.name1}</span>
+            <span className="text-sm text-accent/50 leading-none">✦</span>
+            <span className="text-3xl font-display font-black gradient-text leading-tight">{result.name2}</span>
           </div>
 
           {/* Score ring */}
           <div className="flex justify-center">
-            <ScoreRing score={result.score} size={160} />
+            <ScoreRing score={result.percentage} size={160} />
+          </div>
+
+          {/* Type label */}
+          <div className="text-center">
+            <span className="inline-block px-4 py-1.5 rounded-full border border-accent/30 text-xs font-semibold tracking-widest uppercase gradient-text">
+              {result.type}
+            </span>
           </div>
 
           {/* Hook */}
@@ -215,10 +284,15 @@ function CompatibilityContent() {
               <div className="h-3 bg-white/5 rounded-full animate-pulse w-5/6" />
               <div className="h-3 bg-white/5 rounded-full animate-pulse w-4/5" />
               <div className="h-3 bg-white/5 rounded-full animate-pulse w-full" />
+              <div className="h-3 bg-white/5 rounded-full animate-pulse w-3/4" />
             </div>
           )}
-          {!claudeLoading && claudeBody && (
-            <p className="text-sm text-text/75 leading-relaxed text-center">{claudeBody}</p>
+          {!claudeLoading && result.claudeBody && (
+            <div className="space-y-3">
+              {result.claudeBody.split(/\n\n+/).filter(Boolean).map((para, i) => (
+                <p key={i} className="text-sm text-text/75 leading-relaxed">{para}</p>
+              ))}
+            </div>
           )}
 
           {/* Share */}
@@ -238,11 +312,21 @@ function CompatibilityContent() {
     );
   }
 
-  // ── form screen ──────────────────────────────────────────────────────────
+  // ── form screen ───────────────────────────────────────────────────────────
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[350px] bg-accent/6 rounded-full blur-[100px] pointer-events-none" />
+
+      {(step === "modal" || step === "loading") && (
+        <ConfirmModal
+          name1={name1.trim()} dob1={isoDob1}
+          name2={name2.trim()} dob2={isoDob2}
+          onConfirm={handleConfirm}
+          onBack={() => setStep("form")}
+          loading={step === "loading"}
+        />
+      )}
 
       <div className="relative z-10 w-full max-w-sm mx-auto flex flex-col gap-8">
         <a href="/" className="text-muted hover:text-text transition-colors text-sm self-start">← Back</a>
@@ -254,27 +338,31 @@ function CompatibilityContent() {
           </div>
           <h1 className="text-2xl font-display font-bold text-text leading-tight">Are we compatible?</h1>
           <p className="text-sm text-muted leading-relaxed">
-            Enter both birth dates and find out what your charts say about each other.
+            Enter both birth dates. Your charts will tell the truth.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="w-full space-y-5">
+        <form onSubmit={handleFormSubmit} className="w-full space-y-5">
           {/* Person 1 */}
           <div className="space-y-3">
             <p className="text-[10px] uppercase tracking-widest text-accent/70">You</p>
             <div>
               <label className="block text-xs uppercase tracking-widest text-muted mb-2">Your Name</label>
-              <input type="text" value={name1}
-                onChange={e => { setName1(e.target.value); localStorage.setItem("usunse_name", e.target.value); }}
+              <input
+                type="text" value={name1}
+                onChange={e => setName1(e.target.value)}
                 placeholder="Enter your name" autoComplete="off"
-                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+              />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-widest text-muted mb-2">Your Date of Birth</label>
-              <input type="text" inputMode="numeric" value={dob1}
-                onChange={e => { const v = formatDob(e.target.value); setDob1(v); localStorage.setItem("usunse_dob", v); }}
+              <input
+                type="text" inputMode="numeric" value={dob1}
+                onChange={e => setDob1(formatDob(e.target.value))}
                 placeholder="MM / DD / YYYY" maxLength={14}
-                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+              />
             </div>
           </div>
 
@@ -290,41 +378,48 @@ function CompatibilityContent() {
             <p className="text-[10px] uppercase tracking-widest text-accent/70">Them</p>
             <div>
               <label className="block text-xs uppercase tracking-widest text-muted mb-2">Their Name</label>
-              <input type="text" value={name2}
+              <input
+                type="text" value={name2}
                 onChange={e => setName2(e.target.value)}
                 placeholder="Enter their name" autoComplete="off"
-                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+              />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-widest text-muted mb-2">Their Date of Birth</label>
-              <input type="text" inputMode="numeric" value={dob2}
+              <input
+                type="text" inputMode="numeric" value={dob2}
                 onChange={e => setDob2(formatDob(e.target.value))}
                 placeholder="MM / DD / YYYY" maxLength={14}
-                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+              />
             </div>
           </div>
 
           {/* Email */}
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-2">Your Email</label>
-            <input type="email" value={email}
-              onChange={e => { setEmail(e.target.value); localStorage.setItem("usunse_email", e.target.value); }}
+            <input
+              type="email" value={email}
+              onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com" autoComplete="email"
-              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+            />
             <p className="text-xs text-muted/50 mt-1.5">Used to retrieve your result if you come back.</p>
           </div>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          <button type="submit" disabled={loading}
+          <button
+            type="submit"
             className="w-full py-4 rounded-xl font-semibold text-base tracking-wide transition-all duration-200
               bg-gradient-to-r from-accent to-accent-2 text-white
-              hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
-              shadow-lg shadow-accent/20">
-            {loading ? "Checking…" : "See Our Compatibility →"}
+              hover:opacity-90 active:scale-[0.98] shadow-lg shadow-accent/20"
+          >
+            See Our Compatibility →
           </button>
 
-          <p className="text-center text-xs text-muted">Free · No sign-up required</p>
+          <p className="text-center text-xs text-muted">$1 · One-time · No subscription</p>
         </form>
       </div>
     </main>
