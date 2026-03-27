@@ -8,10 +8,6 @@ export async function POST(req: NextRequest) {
   try {
     const { name1, dob1, name2, dob2 } = await req.json();
 
-    // DEBUG: verify API key is loaded
-    const key = process.env.ANTHROPIC_API_KEY ?? "";
-    console.log("[debug] ANTHROPIC_API_KEY prefix:", key ? key.slice(0, 8) + "..." : "(not set)");
-
     if (!dob1 || !dob2) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 });
     }
