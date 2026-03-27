@@ -2,8 +2,9 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { getFiveElementsResult, FiveElementsResult, ELEMENT_META, ELEMENTS } from "@/lib/fiveElements";
+import { getFiveElementsResult, FiveElementsResult, ELEMENT_META } from "@/lib/fiveElements";
 import { Element } from "@/lib/saju";
+import FiveElementsDiagram from "@/components/FiveElementsDiagram";
 import EmailGate from "@/components/EmailGate";
 import FiveElementsShareModal from "@/components/FiveElementsShareModal";
 import { db } from "@/lib/firebase";
@@ -78,7 +79,6 @@ function MyFiveElementsContent() {
     );
   }
 
-  const maxCount = Math.max(...ELEMENTS.map(e => result.counts[e]));
   const resultUrl = typeof window !== "undefined"
     ? `${window.location.origin}/my-five-elements-result?${new URLSearchParams({ name, dob, ...(hourStr ? { hour: hourStr } : {}) }).toString()}`
     : "";
@@ -130,36 +130,12 @@ function MyFiveElementsContent() {
           </p>
         </div>
 
-        {/* Bar chart */}
-        <div className="bg-[#12121a]/60 border border-white/5 rounded-2xl p-5 space-y-4">
-          {ELEMENTS.map(el => {
-            const count = result.counts[el];
-            const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-            const { korean, english, color } = ELEMENT_META[el];
-            const isDominant = result.dominant.includes(el);
-            const isMissing  = result.missing.includes(el);
-
-            return (
-              <div key={el} className="flex items-center gap-3">
-                <span className="w-5 text-center text-sm font-bold" style={{ color }}>{korean}</span>
-                <span className="w-10 text-xs text-muted/60 shrink-0">{english}</span>
-                <div className="flex-1 h-3 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${barPct}%`, background: color + "cc" }} />
-                </div>
-                <span className="w-4 text-right text-sm font-bold text-text/80 shrink-0">{count}</span>
-                <div className="w-20 shrink-0">
-                  {isDominant && (
-                    <span className="text-[9px] font-bold text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full">★ Dominant</span>
-                  )}
-                  {isMissing && (
-                    <span className="text-[9px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-full">Missing</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {/* Pentagon diagram */}
+        <FiveElementsDiagram
+          counts={result.counts}
+          dominant={result.dominant}
+          missing={result.missing}
+        />
 
         {result.usedPillars === 3 && (
           <p className="text-xs text-muted/50 text-center">Based on 3 pillars · 6 elements (birth hour not provided)</p>
