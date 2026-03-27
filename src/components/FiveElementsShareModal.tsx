@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { drawFiveElementsCard } from "@/lib/shareCanvas";
-import { ELEMENT_META, ELEMENTS, FiveElementsResult } from "@/lib/fiveElements";
+import { FiveElementsResult } from "@/lib/fiveElements";
+import FiveElementsDiagram from "@/components/FiveElementsDiagram";
 
 interface FiveElementsShareModalProps {
   name: string;
@@ -36,6 +36,7 @@ type PendingState = "idle" | "pending" | "done";
 export default function FiveElementsShareModal({
   name, result, userEmail, resultUrl, shareText, onClose,
 }: FiveElementsShareModalProps) {
+  const previewRef = useRef<HTMLDivElement>(null);
   const [couponCode, setCouponCode] = useState("");
   const [couponCopied, setCouponCopied] = useState(false);
   const [pending, setPending] = useState<PendingState>("idle");
@@ -60,22 +61,83 @@ export default function FiveElementsShareModal({
     } catch { /* don't block */ }
   }
 
-  function buildCanvas() {
+  // Capture the live SVG from the preview and render it onto a canvas
+  async function buildCanvas(): Promise<HTMLCanvasElement> {
     const canvas = document.createElement("canvas");
-    drawFiveElementsCard(canvas, {
-      name,
-      counts: result.counts as Record<string, number>,
-      dominant: result.dominant,
-      missing: result.missing,
-    });
+    const W = 540, H = 960;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#0a0a0f");
+    bg.addColorStop(0.5, "#12121a");
+    bg.addColorStop(1, "#0a0a0f");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Glow blob
+    const glow = ctx.createRadialGradient(W / 2, 200, 0, W / 2, 200, 260);
+    glow.addColorStop(0, "rgba(192,132,252,0.15)");
+    glow.addColorStop(1, "rgba(192,132,252,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H / 2);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Logo
+    ctx.fillStyle = "#c084fc";
+    ctx.font = "900 18px system-ui,-apple-system,sans-serif";
+    ctx.fillText("US", W / 2, 158);
+    ctx.fillText("NE", W / 2, 184);
+
+    // Title
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
+    ctx.font = "700 26px system-ui,-apple-system,sans-serif";
+    ctx.fillText("My Five Elements", W / 2, 268);
+
+    // Name
+    ctx.fillStyle = "rgba(255,255,255,0.42)";
+    ctx.font = "400 16px system-ui,-apple-system,sans-serif";
+    ctx.fillText(name, W / 2, 300);
+
+    // Render SVG pentagon onto canvas
+    const svgEl = previewRef.current?.querySelector("svg");
+    if (svgEl) {
+      const clone = svgEl.cloneNode(true) as SVGElement;
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      clone.setAttribute("width", "500");
+      clone.setAttribute("height", "540");
+      const svgStr = new XMLSerializer().serializeToString(clone);
+      const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 20, 320, 500, 540);
+          URL.revokeObjectURL(url);
+          resolve();
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+        img.src = url;
+      });
+    }
+
+    // Footer
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.font = "400 11px system-ui,-apple-system,sans-serif";
+    ctx.fillText("usunse.com", W / 2, H - 68);
+
     return canvas;
   }
 
   async function handleSavePhoto() {
     setCapturing(true);
     try {
+      const canvas = await buildCanvas();
       const a = document.createElement("a");
-      a.href = buildCanvas().toDataURL("image/png");
+      a.href = canvas.toDataURL("image/png");
       a.download = "usunse-five-elements.png";
       a.click();
       showToast("Photo saved!");
@@ -86,7 +148,8 @@ export default function FiveElementsShareModal({
   async function handleSNSShare(platform: "instagram" | "tiktok") {
     setCapturing(true);
     try {
-      const dataUrl = buildCanvas().toDataURL("image/png");
+      const canvas = await buildCanvas();
+      const dataUrl = canvas.toDataURL("image/png");
       const blob = dataUrlToBlob(dataUrl);
       const file = new File([blob], "usunse.png", { type: "image/png" });
       const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -124,8 +187,6 @@ export default function FiveElementsShareModal({
     setTimeout(() => setCouponCopied(false), 2000);
   }
 
-  const maxCount = Math.max(...ELEMENTS.map(e => result.counts[e]));
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
@@ -135,36 +196,40 @@ export default function FiveElementsShareModal({
         <button onClick={onClose} className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-muted hover:text-text transition-colors text-sm">×</button>
 
         {/* Preview card */}
-        <div style={{ width: "100%", aspectRatio: "9/16", background: "linear-gradient(160deg,#0a0a0f 0%,#12121a 50%,#0a0a0f 100%)", position: "relative", overflow: "hidden", fontFamily: "system-ui,-apple-system,sans-serif" }}>
-          <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", width: "70%", height: "30%", background: "rgba(192,132,252,0.12)", borderRadius: "50%", filter: "blur(50px)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "14% 8%" }}>
+        <div
+          ref={previewRef}
+          style={{
+            width: "100%",
+            aspectRatio: "9/16",
+            background: "linear-gradient(160deg,#0a0a0f 0%,#12121a 50%,#0a0a0f 100%)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {/* Glow */}
+          <div style={{ position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)", width: "70%", height: "28%", background: "rgba(192,132,252,0.12)", borderRadius: "50%", filter: "blur(50px)", pointerEvents: "none" }} />
+
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "10% 4% 6%" }}>
             {/* Logo */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1, gap: 1 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1, gap: 1, marginBottom: "4%" }}>
               <span style={{ fontSize: 11, fontWeight: 900, color: "#c084fc" }}>US</span>
               <span style={{ fontSize: 11, fontWeight: 900, color: "#c084fc" }}>NE</span>
             </div>
-            {/* Chart */}
-            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-              <p style={{ margin: 0, textAlign: "center", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.88)" }}>My Five Elements</p>
-              <p style={{ margin: "0 0 6px", textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{name}</p>
-              {ELEMENTS.map(el => {
-                const count = result.counts[el];
-                const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                const { korean, english, color } = ELEMENT_META[el];
-                return (
-                  <div key={el} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <span style={{ width: 14, textAlign: "center", fontSize: 10, fontWeight: 700, color }}>{korean}</span>
-                    <span style={{ width: 32, fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{english}</span>
-                    <div style={{ flex: 1, height: 7, background: "#1e1e2e", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ width: `${barPct}%`, height: "100%", background: color + "bb", borderRadius: 3 }} />
-                    </div>
-                    <span style={{ width: 10, textAlign: "right", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.75)" }}>{count}</span>
-                    {result.dominant.includes(el) && <span style={{ fontSize: 9, color: "#EAB308" }}>★</span>}
-                    {result.missing.includes(el)  && <span style={{ fontSize: 9, color: "#EF4444" }}>✕</span>}
-                  </div>
-                );
-              })}
+
+            {/* Title + name */}
+            <p style={{ margin: 0, textAlign: "center", fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.88)" }}>My Five Elements</p>
+            <p style={{ margin: "3px 0 0", textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{name}</p>
+
+            {/* Pentagon diagram */}
+            <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "center" }}>
+              <FiveElementsDiagram
+                counts={result.counts}
+                dominant={result.dominant}
+                missing={result.missing}
+              />
             </div>
+
+            {/* Footer */}
             <p style={{ margin: 0, fontSize: 7, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.18)" }}>usunse.com</p>
           </div>
         </div>
@@ -203,6 +268,7 @@ export default function FiveElementsShareModal({
           )}
         </div>
       </div>
+
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1e1e2e] border border-white/10 text-sm text-text px-4 py-2 rounded-full shadow-lg pointer-events-none">{toast}</div>
       )}
