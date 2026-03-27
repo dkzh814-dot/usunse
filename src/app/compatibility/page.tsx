@@ -116,6 +116,7 @@ function CompatibilityContent() {
 
   const [result, setResult] = useState<ResultData | null>(null);
   const [claudeLoading, setClaudeLoading] = useState(false);
+  const [claudeError, setClaudeError] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const claudeCalled = useRef(false);
 
@@ -134,6 +135,7 @@ function CompatibilityContent() {
     if (!result || claudeCalled.current || result.claudeBody !== null) return;
     claudeCalled.current = true;
     setClaudeLoading(true);
+    setClaudeError(false);
 
     fetch("/api/compatibility-generate", {
       method: "POST",
@@ -144,11 +146,22 @@ function CompatibilityContent() {
         email: result.email,
       }),
     })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => {
-        setResult(prev => prev ? { ...prev, claudeBody: data.claudeBody || null } : prev);
+      .then(async r => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          console.error("Compatibility API error:", r.status, err);
+          throw new Error(String(r.status));
+        }
+        return r.json();
       })
-      .catch(() => {})
+      .then(data => {
+        const body = typeof data.claudeBody === "string" && data.claudeBody.trim()
+          ? data.claudeBody.trim()
+          : null;
+        setResult(prev => prev ? { ...prev, claudeBody: body } : prev);
+        if (!body) setClaudeError(true);
+      })
+      .catch(() => setClaudeError(true))
       .finally(() => setClaudeLoading(false));
   }, [result]);
 
@@ -269,6 +282,9 @@ function CompatibilityContent() {
                 <p key={i} className="text-sm text-text/75 leading-relaxed">{para}</p>
               ))}
             </div>
+          )}
+          {!claudeLoading && claudeError && (
+            <p className="text-xs text-red-400/70 text-center">Reading failed to load. Check back soon.</p>
           )}
 
           {/* Share */}
