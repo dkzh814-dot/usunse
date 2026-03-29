@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { calculateFourPillars, countElements, lichunSajuYear, lichunSajuMonth } from "@/lib/saju";
 
 // Build a rich saju data object from local calculation for Claude
@@ -66,16 +66,6 @@ export async function POST(req: NextRequest) {
     }
 
     const dob = `${birthYear}-${String(birthMonth).padStart(2, "0")}-${String(birthDay).padStart(2, "0")}`;
-
-    // Check Firestore cache
-    try {
-      const cacheRef = doc(db, "users", email, "saju_cache", dob);
-      const cached = await getDoc(cacheRef);
-      if (cached.exists()) {
-        const d = cached.data();
-        return NextResponse.json({ cached: true, pillars: d.pillars, sajuData: d.sajuData, correctedHour: d.correctedHour });
-      }
-    } catch { /* proceed */ }
 
     // Solar time correction
     let correctedHour: number | null = (birthHour !== null && birthHour !== undefined) ? birthHour : null;

@@ -155,10 +155,20 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const acRef = useRef<any>(null);
 
-  // only auto-fill name
   useEffect(() => {
-    const n = localStorage.getItem("usunse_name") || "";
+    const n = localStorage.getItem("usunse_name")  || "";
+    const d = localStorage.getItem("usunse_dob")   || "";
+    const e = localStorage.getItem("usunse_email") || "";
     if (n) setName(n);
+    if (e) setEmail(e);
+    if (d) {
+      // stored as YYYY-MM-DD, convert to MM / DD / YYYY display format
+      const parts = d.split("-");
+      if (parts.length === 3) {
+        const [y, m, dd] = parts;
+        setDob(formatDob(`${m}${dd}${y}`));
+      }
+    }
   }, []);
 
   const initAutocomplete = useCallback(() => {
@@ -206,7 +216,10 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
       const t = to24h(timeHour, timeMinute, timeAmPm as "AM" | "PM");
       if (t) { birthHour = t.h; birthMinute = t.m; }
     }
-    localStorage.setItem("usunse_name", name.trim());
+    const dob = `${parsed.year}-${String(parsed.month).padStart(2, "0")}-${String(parsed.day).padStart(2, "0")}`;
+    localStorage.setItem("usunse_name",  name.trim());
+    localStorage.setItem("usunse_dob",   dob);
+    localStorage.setItem("usunse_email", email.trim());
     onSubmit({
       name: name.trim(), email: email.trim(),
       gender: gender as "male" | "female",
