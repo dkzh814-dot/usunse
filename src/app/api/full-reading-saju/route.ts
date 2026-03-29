@@ -104,16 +104,24 @@ export async function POST(req: NextRequest) {
 
     // Call Woonsewiki API if configured
     let sajuData: Record<string, unknown> = {};
-    const woonsewikiUrl = process.env.WOONSEWIKI_API_URL;
-    if (woonsewikiUrl) {
+    const woonsewikiKey = process.env.WOONSEWIKI_API_KEY;
+    if (woonsewikiKey) {
       try {
-        const res = await fetch(woonsewikiUrl, {
+        const res = await fetch("https://luckyloveme.com/api/saju-full-analysis", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.WOONSEWIKI_API_KEY ?? ""}`,
+            "User-Agent": "SajuBookClient/1.0",
+            "X-SAJU-BOOK-API-KEY": woonsewikiKey,
           },
-          body: JSON.stringify({ year: birthYear, month: birthMonth, day: birthDay, hour: correctedHour }),
+          body: JSON.stringify({
+            birthYear:    String(birthYear),
+            birthMonth:   String(birthMonth),
+            birthDay:     String(birthDay),
+            birthHour:    correctedHour !== null ? String(correctedHour) : "0",
+            birthMinute:  String(birthMinute ?? 0),
+            calendarType: "양력",
+          }),
         });
         if (res.ok) {
           const external = await res.json();
