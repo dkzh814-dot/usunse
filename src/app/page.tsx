@@ -30,7 +30,7 @@ const freeCards = [
 const paidCards = [
   { title: "Are we compatible?",              desc: "Enter any birth date — idol, crush, or partner",          price: "$1",    sub: null,                  soon: false, href: "/compatibility" },
   { title: "Who were you in a past life?",    desc: "Your past life revealed through your chart",              price: "$1",    sub: null,                  soon: true  },
-  { title: "Full Destiny Reading",            desc: "Your personality, career, love, and life cycles in full", price: "$10",   sub: null,                  soon: false },
+  { title: "Full Destiny Reading",            desc: "Your personality, career, love, and life cycles in full", price: "$10",   sub: null,                  soon: false, href: "/full-reading" },
   { title: "This year's fortune",             desc: "What 2026 and 2027 hold for your energy",                 price: "$10",   sub: null,                  soon: false },
   { title: "Korean Name Reading",              desc: "A Korean name chosen for your energy and balance",       price: "$10",   sub: null,                  soon: true  },
   { title: "Monthly Energy Report",           desc: "Your monthly forecast delivered to your inbox",           price: "$5/mo", sub: "mailing subscription", soon: false },
