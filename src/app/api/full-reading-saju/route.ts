@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { calculateFourPillars, countElements, lichunSajuYear, lichunSajuMonth } from "@/lib/saju";
 
 // Build a rich saju data object from local calculation for Claude
@@ -128,17 +126,7 @@ export async function POST(req: NextRequest) {
 
     const pillars = (sajuData as { pillars: unknown }).pillars;
 
-    // Save to Firestore cache
-    try {
-      const cacheRef = doc(db, "users", email, "saju_cache", dob);
-      await setDoc(cacheRef, {
-        email, name, dob, correctedHour,
-        pillars, sajuData,
-        createdAt: serverTimestamp(),
-      });
-    } catch { /* don't block */ }
-
-    return NextResponse.json({ cached: false, pillars, sajuData, correctedHour });
+    return NextResponse.json({ pillars, sajuData, correctedHour });
   } catch (err) {
     console.error("Full reading saju error:", err);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
