@@ -608,7 +608,7 @@ function ChartCard({ pillars, name, dob, birthTimeLabel }: { pillars: Pillars; n
 
 // ── claude card ────────────────────────────────────────────────────────────────
 
-function ClaudeCard({ cardIndex, status }: { cardIndex: number; status: CardStatus }) {
+function ClaudeCard({ cardIndex, status, onRetry }: { cardIndex: number; status: CardStatus; onRetry: () => void }) {
   const meta = CARD_META[cardIndex];
 
   return (
@@ -631,7 +631,15 @@ function ClaudeCard({ cardIndex, status }: { cardIndex: number; status: CardStat
       )}
 
       {status.state === "error" && (
-        <p className="text-xs text-red-400/70 text-center">Reading failed to load. Check back soon.</p>
+        <div className="flex flex-col items-center gap-4 mt-4">
+          <p className="text-xs text-red-400/70 text-center">Reading failed to load.</p>
+          <button
+            onClick={onRetry}
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-white/10 text-muted/80 hover:border-accent/40 hover:text-accent transition-all"
+          >
+            ↺ Try again
+          </button>
+        </div>
       )}
 
       {status.state === "done" && (
@@ -691,6 +699,11 @@ function CardDeck({ reading, onEmailSave }: {
       });
     }
   }, [reading.name, reading.sajuJson]);
+
+  function retryCard(index: number) {
+    loadedRef.current.delete(index);
+    loadCard(index);
+  }
 
   // Load card 1 immediately; prefetch next card on scroll
   useEffect(() => { loadCard(1); }, [loadCard]);
@@ -756,7 +769,7 @@ function CardDeck({ reading, onEmailSave }: {
           >
             {i === 0
               ? <ChartCard pillars={reading.pillars} name={reading.name} dob={reading.dob} birthTimeLabel={reading.birthTimeLabel} />
-              : <ClaudeCard cardIndex={i} status={statuses[i]} />
+              : <ClaudeCard cardIndex={i} status={statuses[i]} onRetry={() => retryCard(i)} />
             }
 
             {/* Email save button on last card */}
