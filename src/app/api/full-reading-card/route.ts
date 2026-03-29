@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `You are writing a personal destiny reading for someone who has paid for a premium experience. Style: magazine column. Short punch line first, then expand. Zero saju terminology visible to the reader. No element names (Wood, Fire, Earth, Metal, Water). No Chinese characters. No bullet points. No headers. Make them feel seen. The reader should think 'this is exactly me' after every paragraph.`;
+const SYSTEM_PROMPT = `You are writing a personal destiny reading for someone who has paid for a premium experience. Style: magazine column. Short punch line first, then expand. Zero saju terminology visible to the reader. No element names (Wood, Fire, Earth, Metal, Water). No Chinese characters. No bullet points. No headers. Do not make gender-specific assumptions about relationships, roles, or life choices. Write as if this reading applies equally regardless of who the person loves or how they identify. Make them feel seen. The reader should think 'this is exactly me' after every paragraph.`;
 
 function buildUserPrompt(cardIndex: number, name: string, sajuJson: string): string {
   switch (cardIndex) {

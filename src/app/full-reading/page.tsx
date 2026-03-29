@@ -69,6 +69,7 @@ interface Reading {
   email: string;
   gender: "male" | "female";
   dob: string;
+  birthTimeLabel: string;
   pillars: Pillars;
   sajuJson: string;
 }
@@ -138,6 +139,7 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
   birthYear: number; birthMonth: number; birthDay: number;
   birthHour: number | null; birthMinute: number | null;
   birthCity: string; latitude: number | null; longitude: number | null;
+  birthTimeLabel: string;
 }) => void }) {
   const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
@@ -146,10 +148,11 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
   const [timeHour, setTimeHour]     = useState("");
   const [timeMinute, setTimeMinute] = useState("");
   const [timeAmPm, setTimeAmPm]     = useState<"AM" | "PM" | "">("");
-  const [city, setCity]       = useState("");
-  const [lat, setLat]         = useState<number | null>(null);
-  const [lng, setLng]         = useState<number | null>(null);
-  const [error, setError]     = useState("");
+  const [city, setCity]         = useState("");
+  const [lat, setLat]           = useState<number | null>(null);
+  const [lng, setLng]           = useState<number | null>(null);
+  const [solarPreview, setSolarPreview] = useState<string | null>(null);
+  const [error, setError]       = useState("");
   const [confirming, setConfirming] = useState(false);
   const cityRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -191,6 +194,34 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
     return () => { window.onMapsLoad = undefined; };
   }, [initAutocomplete]);
 
+  // Solar time preview
+  useEffect(() => {
+    if (!lat || !lng || !timeHour || !timeAmPm) { setSolarPreview(null); return; }
+    const t = to24h(timeHour, timeMinute, timeAmPm as "AM" | "PM");
+    if (!t) { setSolarPreview(null); return; }
+    const parsed = dobToIso(dob);
+    const ts = parsed
+      ? Math.floor(new Date(parsed.year, parsed.month - 1, parsed.day, t.h, t.m).getTime() / 1000)
+      : Math.floor(Date.now() / 1000);
+    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!key) { setSolarPreview(null); return; }
+    fetch(`https://maps.googleapis.com/maps/api/timezone/json?location=${lat},${lng}&timestamp=${ts}&key=${key}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.status !== "OK") { setSolarPreview(null); return; }
+        const utcOffsetMin = (data.rawOffset + data.dstOffset) / 60;
+        const localMin = t.h * 60 + t.m;
+        const solarMin = (localMin - utcOffsetMin) + lng * 4;
+        const norm = ((solarMin % 1440) + 1440) % 1440;
+        const sh = Math.floor(norm / 60);
+        const sm = Math.round(norm % 60);
+        const ap = sh >= 12 ? "PM" : "AM";
+        const dh = sh % 12 || 12;
+        setSolarPreview(`${dh}:${String(sm).padStart(2, "0")} ${ap}`);
+      })
+      .catch(() => setSolarPreview(null));
+  }, [lat, lng, timeHour, timeMinute, timeAmPm, dob]);
+
   function handleNext(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -217,8 +248,16 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
       if (t) { birthHour = t.h; birthMinute = t.m; }
     }
     const dob = `${parsed.year}-${String(parsed.month).padStart(2, "0")}-${String(parsed.day).padStart(2, "0")}`;
+    const isoDob = `${parsed.year}-${String(parsed.month).padStart(2, "0")}-${String(parsed.day).padStart(2, "0")}`;
+    let birthTimeLabel = "";
+    if (birthHour !== null) {
+      const ap = birthHour >= 12 ? "PM" : "AM";
+      const dh = birthHour % 12 || 12;
+      const dm = String(birthMinute ?? 0).padStart(2, "0");
+      birthTimeLabel = `${dh}:${dm} ${ap}`;
+    }
     localStorage.setItem("usunse_name",  name.trim());
-    localStorage.setItem("usunse_dob",   dob);
+    localStorage.setItem("usunse_dob",   isoDob);
     localStorage.setItem("usunse_email", email.trim());
     onSubmit({
       name: name.trim(), email: email.trim(),
@@ -226,6 +265,7 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
       birthYear: parsed.year, birthMonth: parsed.month, birthDay: parsed.day,
       birthHour, birthMinute,
       birthCity: city, latitude: lat, longitude: lng,
+      birthTimeLabel,
     });
   }
 
@@ -392,7 +432,11 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
               onChange={e => { setCity(e.target.value); setLat(null); setLng(null); }}
               placeholder="Search city…" autoComplete="off"
               className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
-            <p className="text-xs text-muted/50 mt-1.5">Used for solar time correction based on longitude.</p>
+            {solarPreview && city ? (
+              <p className="text-xs text-accent/70 mt-1.5">{city.split(",")[0]} → Solar time: {solarPreview}</p>
+            ) : (
+              <p className="text-xs text-muted/50 mt-1.5">Used for solar time correction based on longitude.</p>
+            )}
           </div>
 
           {/* Email */}
@@ -461,7 +505,7 @@ function computeChartStats(pillars: Pillars) {
   return { yang, yin, counts };
 }
 
-function ChartCard({ pillars, name }: { pillars: Pillars; name: string }) {
+function ChartCard({ pillars, name, dob, birthTimeLabel }: { pillars: Pillars; name: string; dob: string; birthTimeLabel: string }) {
   const { yang, yin, counts } = computeChartStats(pillars);
   const total = yang + yin;
   const elTotal = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -472,11 +516,18 @@ function ChartCard({ pillars, name }: { pillars: Pillars; name: string }) {
     { label: "년 Year",  pillar: pillars.year,  isMe: false },
   ];
 
+  const dobDisplay = (() => {
+    const [y, m, d] = dob.split("-");
+    return `${m}/${d}/${y}`;
+  })();
+
   return (
     <div className="px-4 py-8 space-y-8">
       <div className="text-center">
         <h2 className="text-sm font-semibold gradient-text uppercase tracking-widest">사주원국 Your Chart</h2>
-        <p className="text-xs text-muted/60 mt-1">{name}</p>
+        <p className="text-xs text-muted/60 mt-1">
+          {name} · {dobDisplay}{birthTimeLabel ? ` · ${birthTimeLabel}` : ""}
+        </p>
       </div>
 
       {/* Four pillars grid */}
@@ -516,13 +567,13 @@ function ChartCard({ pillars, name }: { pillars: Pillars; name: string }) {
             className="flex items-center justify-end pr-2 transition-all duration-700"
             style={{ width: `${(yang / total) * 100}%`, background: "#D85A30" }}
           >
-            {yang > 0 && <span className="text-[10px] text-white font-bold">陽</span>}
+            {yang > 0 && <span className="text-[10px] text-white font-bold">양</span>}
           </div>
           <div
             className="flex items-center pl-2 transition-all duration-700"
             style={{ width: `${(yin / total) * 100}%`, background: "#3D4F60" }}
           >
-            {yin > 0 && <span className="text-[10px] text-white font-bold">陰</span>}
+            {yin > 0 && <span className="text-[10px] text-white font-bold">음</span>}
           </div>
         </div>
         <div className="flex justify-between text-xs text-muted/60">
@@ -642,14 +693,16 @@ function CardDeck({ reading, onEmailSave }: {
     }
   }, [reading.name, reading.sajuJson]);
 
-  // Cards 2–6 will be wired in the next phase
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  void loadCard;
+  // Load card 1 immediately; prefetch next card on scroll
+  useEffect(() => { loadCard(1); }, [loadCard]);
 
   function handleScroll(e: React.UIEvent<HTMLDivElement>) {
     const el = e.currentTarget;
     const newCard = Math.round(el.scrollLeft / el.clientWidth);
-    if (newCard !== activeCard) setActiveCard(newCard);
+    if (newCard !== activeCard) {
+      setActiveCard(newCard);
+      if (newCard + 1 <= 5) loadCard(newCard + 1);
+    }
   }
 
   function scrollTo(index: number) {
@@ -703,7 +756,7 @@ function CardDeck({ reading, onEmailSave }: {
             style={{ scrollSnapAlign: "start", flexShrink: 0, width: "100%", overflowY: "auto" }}
           >
             {i === 0
-              ? <ChartCard pillars={reading.pillars} name={reading.name} />
+              ? <ChartCard pillars={reading.pillars} name={reading.name} dob={reading.dob} birthTimeLabel={reading.birthTimeLabel} />
               : <ClaudeCard cardIndex={i} status={statuses[i]} />
             }
 
@@ -753,6 +806,7 @@ function FullReadingContent() {
     birthYear: number; birthMonth: number; birthDay: number;
     birthHour: number | null; birthMinute: number | null;
     birthCity: string; latitude: number | null; longitude: number | null;
+    birthTimeLabel: string;
   }) {
     setStep("loading");
     setLoadMsg("Calculating your chart…");
@@ -781,10 +835,11 @@ function FullReadingContent() {
       const dob = `${data.birthYear}-${String(data.birthMonth).padStart(2, "0")}-${String(data.birthDay).padStart(2, "0")}`;
 
       setReading({
-        name:     data.name,
-        email:    data.email,
-        gender:   data.gender,
+        name:           data.name,
+        email:          data.email,
+        gender:         data.gender,
         dob,
+        birthTimeLabel: data.birthTimeLabel,
         pillars,
         sajuJson: JSON.stringify(sajuData),
       });
