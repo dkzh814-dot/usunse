@@ -67,6 +67,7 @@ interface Pillars {
 interface Reading {
   name: string;
   email: string;
+  gender: "male" | "female";
   dob: string;
   pillars: Pillars;
   sajuJson: string;
@@ -103,21 +104,22 @@ declare global {
 // ── form screen ───────────────────────────────────────────────────────────────
 
 function FormScreen({ onSubmit }: { onSubmit: (data: {
-  name: string; email: string;
+  name: string; email: string; gender: "male" | "female";
   birthYear: number; birthMonth: number; birthDay: number;
   birthHour: number | null; birthMinute: number | null;
   birthCity: string; latitude: number | null; longitude: number | null;
 }) => void }) {
-  const [name, setName]   = useState("");
-  const [email, setEmail] = useState("");
-  const [year, setYear]   = useState("");
-  const [month, setMonth] = useState("");
-  const [day, setDay]     = useState("");
-  const [time, setTime]   = useState("");
-  const [city, setCity]   = useState("");
-  const [lat, setLat]     = useState<number | null>(null);
-  const [lng, setLng]     = useState<number | null>(null);
-  const [error, setError] = useState("");
+  const [name, setName]     = useState("");
+  const [email, setEmail]   = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "">("");
+  const [year, setYear]     = useState("");
+  const [month, setMonth]   = useState("");
+  const [day, setDay]       = useState("");
+  const [time, setTime]     = useState("");
+  const [city, setCity]     = useState("");
+  const [lat, setLat]       = useState<number | null>(null);
+  const [lng, setLng]       = useState<number | null>(null);
+  const [error, setError]   = useState("");
   const cityRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const acRef = useRef<any>(null);
@@ -158,6 +160,7 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
     e.preventDefault();
     setError("");
     if (!name.trim())  { setError("Enter your name."); return; }
+    if (!gender)       { setError("Please select male or female."); return; }
     const y = parseInt(year), m = parseInt(month), d = parseInt(day);
     if (!y || y < 1920 || y > new Date().getFullYear() - 5) { setError("Enter a valid birth year."); return; }
     if (!m || m < 1 || m > 12)  { setError("Select your birth month."); return; }
@@ -178,7 +181,7 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
     localStorage.setItem("usunse_dob",   dob);
     localStorage.setItem("usunse_email", email.trim());
 
-    onSubmit({ name: name.trim(), email: email.trim(), birthYear: y, birthMonth: m, birthDay: d, birthHour, birthMinute, birthCity: city, latitude: lat, longitude: lng });
+    onSubmit({ name: name.trim(), email: email.trim(), gender: gender as "male" | "female", birthYear: y, birthMonth: m, birthDay: d, birthHour, birthMinute, birthCity: city, latitude: lat, longitude: lng });
   }
 
   const currentYear = new Date().getFullYear();
@@ -214,6 +217,27 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
             <input type="text" value={name} onChange={e => setName(e.target.value)}
               placeholder="Enter your name" autoComplete="off"
               className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Which best describes you?</label>
+            <div className="flex gap-3">
+              {(["male", "female"] as const).map(g => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGender(g)}
+                  className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-all ${
+                    gender === g
+                      ? "border-accent bg-accent/10 text-accent"
+                      : "border-border bg-surface text-muted hover:border-white/20"
+                  }`}
+                >
+                  {g === "male" ? "Male" : "Female"}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Date of Birth */}
@@ -479,7 +503,7 @@ function CardDeck({ reading, onEmailSave }: {
 }) {
   const [activeCard, setActiveCard]   = useState(0);
   const [statuses, setStatuses]       = useState<CardStatus[]>(
-    Array.from({ length: 6 }, (_, i) => (i === 0 ? { state: "idle" } : { state: "idle" }))
+    Array.from({ length: 6 }, () => ({ state: "idle" as const }))
   );
   const [emailSending, setEmailSending] = useState(false);
   const [emailDone, setEmailDone]       = useState(false);
@@ -518,16 +542,14 @@ function CardDeck({ reading, onEmailSave }: {
     }
   }, [reading.name, reading.sajuJson]);
 
-  // Load card 1 immediately when deck mounts
-  useEffect(() => { loadCard(1); }, [loadCard]);
+  // Cards 2–6 will be wired in the next phase
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void loadCard;
 
   function handleScroll(e: React.UIEvent<HTMLDivElement>) {
     const el = e.currentTarget;
     const newCard = Math.round(el.scrollLeft / el.clientWidth);
-    if (newCard !== activeCard) {
-      setActiveCard(newCard);
-      if (newCard + 1 <= 5) loadCard(newCard + 1);
-    }
+    if (newCard !== activeCard) setActiveCard(newCard);
   }
 
   function scrollTo(index: number) {
@@ -627,7 +649,7 @@ function FullReadingContent() {
   const [loadMsg, setLoadMsg] = useState("Reading your chart…");
 
   async function handleFormSubmit(data: {
-    name: string; email: string;
+    name: string; email: string; gender: "male" | "female";
     birthYear: number; birthMonth: number; birthDay: number;
     birthHour: number | null; birthMinute: number | null;
     birthCity: string; latitude: number | null; longitude: number | null;
@@ -642,6 +664,7 @@ function FullReadingContent() {
         body: JSON.stringify({
           email:      data.email,
           name:       data.name,
+          gender:     data.gender,
           birthYear:  data.birthYear,
           birthMonth: data.birthMonth,
           birthDay:   data.birthDay,
@@ -660,6 +683,7 @@ function FullReadingContent() {
       setReading({
         name:     data.name,
         email:    data.email,
+        gender:   data.gender,
         dob,
         pillars,
         sajuJson: JSON.stringify(sajuData),

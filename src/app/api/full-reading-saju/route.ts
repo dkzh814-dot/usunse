@@ -55,7 +55,7 @@ function buildLocalSajuData(
 export async function POST(req: NextRequest) {
   try {
     const {
-      email, name,
+      email, name, gender,
       birthYear, birthMonth, birthDay,
       birthHour, birthMinute,
       latitude, longitude,
@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
             birthHour:    correctedHour !== null ? String(correctedHour) : "0",
             birthMinute:  String(birthMinute ?? 0),
             calendarType: "양력",
+            gender:       gender === "female" ? "female" : "male",
           }),
         });
         if (res.ok) {
