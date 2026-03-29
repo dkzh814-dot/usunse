@@ -247,7 +247,6 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
       const t = to24h(timeHour, timeMinute, timeAmPm as "AM" | "PM");
       if (t) { birthHour = t.h; birthMinute = t.m; }
     }
-    const dob = `${parsed.year}-${String(parsed.month).padStart(2, "0")}-${String(parsed.day).padStart(2, "0")}`;
     const isoDob = `${parsed.year}-${String(parsed.month).padStart(2, "0")}-${String(parsed.day).padStart(2, "0")}`;
     let birthTimeLabel = "";
     if (birthHour !== null) {
