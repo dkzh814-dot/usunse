@@ -63,8 +63,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 });
     }
 
-    const dob = `${birthYear}-${String(birthMonth).padStart(2, "0")}-${String(birthDay).padStart(2, "0")}`;
-
     // Solar time correction
     let correctedHour: number | null = (birthHour !== null && birthHour !== undefined) ? birthHour : null;
 
