@@ -101,6 +101,36 @@ declare global {
   }
 }
 
+// ── dob helpers ───────────────────────────────────────────────────────────────
+
+function formatDob(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
+  return `${digits.slice(0, 2)} / ${digits.slice(2, 4)} / ${digits.slice(4)}`;
+}
+
+function dobToIso(dob: string): { year: number; month: number; day: number } | null {
+  const parts = dob.split(" / ");
+  if (parts.length !== 3 || parts.some(p => p === "")) return null;
+  const [m, d, y] = parts.map(Number);
+  if (!y || y < 1920 || y > new Date().getFullYear() - 5) return null;
+  if (!m || m < 1 || m > 12) return null;
+  if (!d || d < 1 || d > 31) return null;
+  return { year: y, month: m, day: d };
+}
+
+function to24h(hour: string, minute: string, ampm: "AM" | "PM"): { h: number; m: number } | null {
+  const h = parseInt(hour);
+  const m = parseInt(minute || "0");
+  if (isNaN(h) || h < 1 || h > 12) return null;
+  if (isNaN(m) || m < 0 || m > 59) return null;
+  let h24 = h;
+  if (ampm === "AM" && h === 12) h24 = 0;
+  if (ampm === "PM" && h !== 12) h24 = h + 12;
+  return { h: h24, m };
+}
+
 // ── form screen ───────────────────────────────────────────────────────────────
 
 function FormScreen({ onSubmit }: { onSubmit: (data: {
@@ -109,31 +139,26 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
   birthHour: number | null; birthMinute: number | null;
   birthCity: string; latitude: number | null; longitude: number | null;
 }) => void }) {
-  const [name, setName]     = useState("");
-  const [email, setEmail]   = useState("");
-  const [gender, setGender] = useState<"male" | "female" | "">("");
-  const [year, setYear]     = useState("");
-  const [month, setMonth]   = useState("");
-  const [day, setDay]       = useState("");
-  const [time, setTime]     = useState("");
-  const [city, setCity]     = useState("");
-  const [lat, setLat]       = useState<number | null>(null);
-  const [lng, setLng]       = useState<number | null>(null);
-  const [error, setError]   = useState("");
+  const [name, setName]       = useState("");
+  const [email, setEmail]     = useState("");
+  const [dob, setDob]         = useState("");
+  const [gender, setGender]   = useState<"male" | "female" | "">("");
+  const [timeHour, setTimeHour]     = useState("");
+  const [timeMinute, setTimeMinute] = useState("");
+  const [timeAmPm, setTimeAmPm]     = useState<"AM" | "PM" | "">("");
+  const [city, setCity]       = useState("");
+  const [lat, setLat]         = useState<number | null>(null);
+  const [lng, setLng]         = useState<number | null>(null);
+  const [error, setError]     = useState("");
+  const [confirming, setConfirming] = useState(false);
   const cityRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const acRef = useRef<any>(null);
 
+  // only auto-fill name
   useEffect(() => {
-    const n = localStorage.getItem("usunse_name")  || "";
-    const d = localStorage.getItem("usunse_dob")   || "";
-    const e = localStorage.getItem("usunse_email") || "";
+    const n = localStorage.getItem("usunse_name") || "";
     if (n) setName(n);
-    if (e) setEmail(e);
-    if (d) {
-      const parts = d.split("-");
-      if (parts.length === 3) { setYear(parts[0]); setMonth(String(parseInt(parts[1]))); setDay(String(parseInt(parts[2]))); }
-    }
   }, []);
 
   const initAutocomplete = useCallback(() => {
@@ -156,36 +181,101 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
     return () => { window.onMapsLoad = undefined; };
   }, [initAutocomplete]);
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleNext(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!name.trim())  { setError("Enter your name."); return; }
-    if (!gender)       { setError("Please select male or female."); return; }
-    const y = parseInt(year), m = parseInt(month), d = parseInt(day);
-    if (!y || y < 1920 || y > new Date().getFullYear() - 5) { setError("Enter a valid birth year."); return; }
-    if (!m || m < 1 || m > 12)  { setError("Select your birth month."); return; }
-    if (!d || d < 1 || d > 31)  { setError("Select your birth day."); return; }
-    if (!city.trim())  { setError("Select your birth city."); return; }
-    if (!lat || !lng)  { setError("Please select a city from the dropdown."); return; }
+    if (!name.trim()) { setError("Enter your name."); return; }
+    const parsed = dobToIso(dob);
+    if (!parsed) { setError("Enter a valid date of birth (MM / DD / YYYY)."); return; }
+    if (!gender)  { setError("Please select male or female."); return; }
+    if (!city.trim() || !lat || !lng) { setError("Please select a birth city from the dropdown."); return; }
     if (!email.trim() || !email.includes("@")) { setError("Enter a valid email."); return; }
-
-    let birthHour: number | null = null;
-    let birthMinute: number | null = null;
-    if (time) {
-      const [h, min] = time.split(":").map(Number);
-      birthHour = h; birthMinute = min;
+    if (timeHour || timeAmPm) {
+      if (!timeAmPm) { setError("Select AM or PM for your birth time."); return; }
+      const t = to24h(timeHour, timeMinute, timeAmPm as "AM" | "PM");
+      if (!t) { setError("Enter a valid birth time (hour 1–12, minute 00–59)."); return; }
     }
-
-    const dob = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    localStorage.setItem("usunse_name",  name.trim());
-    localStorage.setItem("usunse_dob",   dob);
-    localStorage.setItem("usunse_email", email.trim());
-
-    onSubmit({ name: name.trim(), email: email.trim(), gender: gender as "male" | "female", birthYear: y, birthMonth: m, birthDay: d, birthHour, birthMinute, birthCity: city, latitude: lat, longitude: lng });
+    setConfirming(true);
   }
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 1919 }, (_, i) => currentYear - 5 - i);
+  function handleConfirm() {
+    const parsed = dobToIso(dob)!;
+    let birthHour: number | null = null;
+    let birthMinute: number | null = null;
+    if (timeHour && timeAmPm) {
+      const t = to24h(timeHour, timeMinute, timeAmPm as "AM" | "PM");
+      if (t) { birthHour = t.h; birthMinute = t.m; }
+    }
+    localStorage.setItem("usunse_name", name.trim());
+    onSubmit({
+      name: name.trim(), email: email.trim(),
+      gender: gender as "male" | "female",
+      birthYear: parsed.year, birthMonth: parsed.month, birthDay: parsed.day,
+      birthHour, birthMinute,
+      birthCity: city, latitude: lat, longitude: lng,
+    });
+  }
+
+  // ── confirmation screen ────────────────────────────────────────────────────
+
+  if (confirming) {
+    const parsed = dobToIso(dob)!;
+    const dobDisplay = `${String(parsed.month).padStart(2, "0")}/${String(parsed.day).padStart(2, "0")}/${parsed.year}`;
+    let timeDisplay = "Not entered";
+    if (timeHour && timeAmPm) {
+      const min = timeMinute ? timeMinute.padStart(2, "0") : "00";
+      timeDisplay = `${timeHour}:${min} ${timeAmPm}`;
+    }
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[350px] bg-accent/6 rounded-full blur-[100px] pointer-events-none" />
+        <div className="relative z-10 w-full max-w-sm mx-auto flex flex-col gap-8">
+          <div className="text-center space-y-1">
+            <p className="text-xs uppercase tracking-widest text-muted/60">Full Destiny Reading</p>
+            <h2 className="text-xl font-display font-bold text-text">Does this look right?</h2>
+          </div>
+          <div className="rounded-xl border border-border bg-surface/50 p-5 flex flex-col gap-4">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted/60">Name</span>
+              <span className="text-text font-medium">{name}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted/60">Date of Birth</span>
+              <span className="text-text font-medium">{dobDisplay}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted/60">Gender</span>
+              <span className="text-text font-medium capitalize">{gender}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted/60">Birth Time</span>
+              <span className={`font-medium ${timeDisplay === "Not entered" ? "text-muted/40" : "text-text"}`}>{timeDisplay}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted/60">Birth City</span>
+              <span className="text-text font-medium text-right max-w-[180px] leading-snug">{city}</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleConfirm}
+              className="w-full py-4 rounded-xl font-semibold text-base tracking-wide transition-all duration-200
+                bg-gradient-to-r from-accent to-accent-2 text-white
+                hover:opacity-90 active:scale-[0.98] shadow-lg shadow-accent/20">
+              Yes, this is correct →
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              className="w-full py-3 rounded-xl text-sm text-muted hover:text-text border border-border hover:border-white/20 transition-all">
+              ← Edit
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // ── form ──────────────────────────────────────────────────────────────────
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden">
@@ -210,7 +300,7 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="w-full space-y-5">
+        <form onSubmit={handleNext} className="w-full space-y-5">
           {/* Name */}
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-2">Your Name</label>
@@ -219,54 +309,30 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
               className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
           </div>
 
+          {/* Date of Birth */}
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Date of Birth</label>
+            <input
+              type="text" inputMode="numeric" value={dob} maxLength={14}
+              onChange={e => setDob(formatDob(e.target.value))}
+              placeholder="MM / DD / YYYY"
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+          </div>
+
           {/* Gender */}
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-2">Which best describes you?</label>
             <div className="flex gap-3">
               {(["male", "female"] as const).map(g => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setGender(g)}
+                <button key={g} type="button" onClick={() => setGender(g)}
                   className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-all ${
                     gender === g
                       ? "border-accent bg-accent/10 text-accent"
                       : "border-border bg-surface text-muted hover:border-white/20"
-                  }`}
-                >
+                  }`}>
                   {g === "male" ? "Male" : "Female"}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Date of Birth */}
-          <div>
-            <label className="block text-xs uppercase tracking-widest text-muted mb-2">Date of Birth</label>
-            <div className="flex gap-2">
-              <select value={month} onChange={e => setMonth(e.target.value)}
-                className="flex-1 bg-surface border border-border rounded-xl px-3 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none text-sm">
-                <option value="">Month</option>
-                {Array.from({ length: 12 }, (_, i) => (
-                  <option key={i + 1} value={i + 1} className="bg-surface">
-                    {String(i + 1).padStart(2, "0")}
-                  </option>
-                ))}
-              </select>
-              <select value={day} onChange={e => setDay(e.target.value)}
-                className="flex-1 bg-surface border border-border rounded-xl px-3 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none text-sm">
-                <option value="">Day</option>
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i + 1} value={i + 1} className="bg-surface">{String(i + 1).padStart(2, "0")}</option>
-                ))}
-              </select>
-              <select value={year} onChange={e => setYear(e.target.value)}
-                className="flex-[1.4] bg-surface border border-border rounded-xl px-3 py-3 text-text focus:outline-none focus:border-accent transition-colors appearance-none text-sm">
-                <option value="">Year</option>
-                {years.map(y => (
-                  <option key={y} value={y} className="bg-surface">{y}</option>
-                ))}
-              </select>
             </div>
           </div>
 
@@ -275,23 +341,44 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
             <label className="block text-xs uppercase tracking-widest text-muted mb-2">
               Birth Time <span className="text-muted/60 normal-case">(optional)</span>
             </label>
-            <input type="time" value={time} onChange={e => setTime(e.target.value)}
-              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text focus:outline-none focus:border-accent transition-colors [color-scheme:dark]" />
-            <p className="text-xs text-muted/50 mt-1.5">Used to calculate your hour pillar with solar time correction.</p>
+            <p className="text-xs text-muted/50 mb-2">Adding your birth time gives you a more accurate reading.</p>
+            <div className="flex gap-2">
+              <div className="flex gap-1 flex-1">
+                <input
+                  type="text" inputMode="numeric" value={timeHour} maxLength={2}
+                  onChange={e => setTimeHour(e.target.value.replace(/\D/g, ""))}
+                  placeholder="HH"
+                  className="w-14 bg-surface border border-border rounded-xl px-3 py-3 text-text text-center placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+                <span className="text-muted self-center">:</span>
+                <input
+                  type="text" inputMode="numeric" value={timeMinute} maxLength={2}
+                  onChange={e => setTimeMinute(e.target.value.replace(/\D/g, ""))}
+                  placeholder="MM"
+                  className="w-14 bg-surface border border-border rounded-xl px-3 py-3 text-text text-center placeholder-muted focus:outline-none focus:border-accent transition-colors" />
+              </div>
+              <div className="flex gap-1">
+                {(["AM", "PM"] as const).map(ap => (
+                  <button key={ap} type="button" onClick={() => setTimeAmPm(ap)}
+                    className={`px-4 py-3 rounded-xl text-sm font-semibold border transition-all ${
+                      timeAmPm === ap
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border bg-surface text-muted hover:border-white/20"
+                    }`}>
+                    {ap}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Birth City */}
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-2">Birth City</label>
             <input
-              ref={cityRef}
-              type="text"
-              value={city}
+              ref={cityRef} type="text" value={city}
               onChange={e => { setCity(e.target.value); setLat(null); setLng(null); }}
-              placeholder="Search city…"
-              autoComplete="off"
-              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
-            />
+              placeholder="Search city…" autoComplete="off"
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-muted focus:outline-none focus:border-accent transition-colors" />
             <p className="text-xs text-muted/50 mt-1.5">Used for solar time correction based on longitude.</p>
           </div>
 
@@ -310,7 +397,7 @@ function FormScreen({ onSubmit }: { onSubmit: (data: {
             className="w-full py-4 rounded-xl font-semibold text-base tracking-wide transition-all duration-200
               bg-gradient-to-r from-accent to-accent-2 text-white
               hover:opacity-90 active:scale-[0.98] shadow-lg shadow-accent/20">
-            See My Full Reading →
+            Next →
           </button>
 
           <p className="text-center text-xs text-muted">$10 · One-time · Full 6-card reading</p>
@@ -366,10 +453,10 @@ function ChartCard({ pillars, name }: { pillars: Pillars; name: string }) {
   const total = yang + yin;
   const elTotal = Object.values(counts).reduce((a, b) => a + b, 0);
   const cols = [
-    { label: "년 Year",  pillar: pillars.year,  isMe: false },
-    { label: "월 Month", pillar: pillars.month, isMe: false },
-    { label: "일 Day",   pillar: pillars.day,   isMe: true  },
     { label: "시 Hour",  pillar: pillars.hour,  isMe: false },
+    { label: "일 Day",   pillar: pillars.day,   isMe: true  },
+    { label: "월 Month", pillar: pillars.month, isMe: false },
+    { label: "년 Year",  pillar: pillars.year,  isMe: false },
   ];
 
   return (
