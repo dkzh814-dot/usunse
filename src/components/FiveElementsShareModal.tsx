@@ -9,6 +9,7 @@ import FiveElementsDiagram from "@/components/FiveElementsDiagram";
 interface FiveElementsShareModalProps {
   name: string;
   result: FiveElementsResult;
+  energyTypeName: string;
   userEmail: string;
   resultUrl: string;
   shareText: string;
@@ -34,7 +35,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 type PendingState = "idle" | "pending" | "done";
 
 export default function FiveElementsShareModal({
-  name, result, userEmail, resultUrl, shareText, onClose,
+  name, result, energyTypeName, userEmail, resultUrl, shareText, onClose,
 }: FiveElementsShareModalProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [couponCode, setCouponCode] = useState("");
@@ -92,15 +93,20 @@ export default function FiveElementsShareModal({
     ctx.fillText("US", W / 2, 158);
     ctx.fillText("NE", W / 2, 184);
 
-    // Title
-    ctx.fillStyle = "rgba(255,255,255,0.88)";
-    ctx.font = "700 26px system-ui,-apple-system,sans-serif";
-    ctx.fillText("My Five Elements", W / 2, 268);
+    // Energy type label
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "400 13px system-ui,-apple-system,sans-serif";
+    ctx.fillText("I am", W / 2, 248);
+
+    // Energy type name
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.font = "800 28px system-ui,-apple-system,sans-serif";
+    ctx.fillText(energyTypeName, W / 2, 282);
 
     // Name
-    ctx.fillStyle = "rgba(255,255,255,0.42)";
-    ctx.font = "400 16px system-ui,-apple-system,sans-serif";
-    ctx.fillText(name, W / 2, 300);
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "400 14px system-ui,-apple-system,sans-serif";
+    ctx.fillText(name, W / 2, 312);
 
     // Render SVG pentagon onto canvas
     const svgEl = previewRef.current?.querySelector("svg");
@@ -216,9 +222,10 @@ export default function FiveElementsShareModal({
               <span style={{ fontSize: 11, fontWeight: 900, color: "#c084fc" }}>NE</span>
             </div>
 
-            {/* Title + name */}
-            <p style={{ margin: 0, textAlign: "center", fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.88)" }}>My Five Elements</p>
-            <p style={{ margin: "3px 0 0", textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{name}</p>
+            {/* Energy type identity */}
+            <p style={{ margin: 0, textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.38)" }}>I am</p>
+            <p style={{ margin: "2px 0 0", textAlign: "center", fontSize: 15, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>{energyTypeName}</p>
+            <p style={{ margin: "3px 0 0", textAlign: "center", fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{name}</p>
 
             {/* Pentagon diagram */}
             <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "center" }}>

@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { getRepelResult, getRepelCopy, RepelResult } from "@/lib/repel";
+import { getRepelResult, getRepelCopy, getRepelHook, RepelResult } from "@/lib/repel";
 import EmailGate from "@/components/EmailGate";
 import RepelShareModal from "@/components/RepelShareModal";
 import { db } from "@/lib/firebase";
@@ -56,10 +56,11 @@ function RepelResultContent() {
   }
 
   const copy = getRepelCopy(result.key);
+  const hook = getRepelHook(result.key);
   const resultUrl = typeof window !== "undefined"
     ? `${window.location.origin}/repel-result?${new URLSearchParams({ name, dob }).toString()}`
     : "";
-  const shareText = `my UsUnse reading: I attract ${result.repelType.name} types\n'${result.repelType.tagline}'\nusunse.com/repel-test`;
+  const shareText = `${hook}\n'${result.repelType.tagline}'\nusunse.com/repel-test`;
   const spParams = { name, dob };
 
   return (
@@ -82,7 +83,7 @@ function RepelResultContent() {
       {/* Share modal */}
       {shareOpen && (
         <RepelShareModal
-          typeName={result.repelType.name}
+          hookLine={hook}
           tagline={result.repelType.tagline}
           userEmail={userEmail}
           resultUrl={resultUrl}
@@ -103,17 +104,17 @@ function RepelResultContent() {
 
         {/* Result card */}
         <div className="flex flex-col items-center gap-3 text-center">
-          <span className="text-xs uppercase tracking-widest text-muted/60">You attract</span>
-          <h1 className="text-4xl font-display font-black gradient-text leading-tight">
-            {result.repelType.name}
-          </h1>
+          {/* Hook line */}
+          <p className="text-lg font-display font-semibold text-text/90 leading-snug italic">
+            &ldquo;{hook}&rdquo;
+          </p>
 
           {/* Divider */}
           <div className="w-12 h-px bg-accent/30 my-1" />
 
-          {/* Static copy */}
-          <p className="text-sm text-text/85 leading-relaxed font-display italic">
-            &ldquo;{copy}&rdquo;
+          {/* Body copy */}
+          <p className="text-sm text-text/75 leading-relaxed">
+            {copy}
           </p>
 
           {/* Tagline */}

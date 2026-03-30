@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { getFiveElementsResult, FiveElementsResult, ELEMENT_META } from "@/lib/fiveElements";
 import { Element } from "@/lib/saju";
+import { REPEL_TYPES } from "@/lib/repel";
 import FiveElementsDiagram from "@/components/FiveElementsDiagram";
 import EmailGate from "@/components/EmailGate";
 import FiveElementsShareModal from "@/components/FiveElementsShareModal";
@@ -82,8 +83,14 @@ function MyFiveElementsContent() {
   const resultUrl = typeof window !== "undefined"
     ? `${window.location.origin}/my-five-elements-result?${new URLSearchParams({ name, dob, ...(hourStr ? { hour: hourStr } : {}) }).toString()}`
     : "";
-  const dominantNames = result.dominant.map(e => ELEMENT_META[e].english).join(" & ");
-  const shareText = `My UsUnse Five Elements: ${dominantNames} dominant\nusunse.com/my-five-elements`;
+
+  const energyTypeKey = `${result.dominant[0]}-${result.missing[0]}`;
+  const energyTypeName =
+    REPEL_TYPES[energyTypeKey]?.name ??
+    REPEL_TYPES[Object.keys(REPEL_TYPES).find(k => k.startsWith(result.dominant[0] + "-")) ?? ""]?.name ??
+    "The Unknown";
+
+  const shareText = `I am ${energyTypeName} ✦ usunse.com`;
 
   return (
     <main className="min-h-screen px-4 py-10 relative overflow-hidden">
@@ -104,6 +111,7 @@ function MyFiveElementsContent() {
         <FiveElementsShareModal
           name={name}
           result={result}
+          energyTypeName={energyTypeName}
           userEmail={userEmail}
           resultUrl={resultUrl}
           shareText={shareText}
@@ -128,6 +136,12 @@ function MyFiveElementsContent() {
           <p className="text-xs text-muted/40 mt-0.5">
             {formatDobDisplay(dob)}{hourStr && HOUR_LABELS[hourStr] ? ` · ${HOUR_LABELS[hourStr]}` : ""}
           </p>
+        </div>
+
+        {/* Energy Type identity */}
+        <div className="text-center">
+          <p className="text-xs text-muted/50 uppercase tracking-widest mb-1">Your Energy Type</p>
+          <p className="text-2xl font-display font-black gradient-text">You are {energyTypeName}</p>
         </div>
 
         {/* Pentagon diagram */}
