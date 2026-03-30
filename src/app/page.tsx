@@ -8,9 +8,9 @@ const freeCards = [
     badge: "free",
   },
   {
-    title: "What type do you repel?",
-    desc: "Discover the energy pattern behind your toxic relationships",
-    href: "/repel-test",
+    title: "My Five Elements",
+    desc: "See how many of each element you carry",
+    href: "/my-five-elements",
     badge: "free",
   },
   {
@@ -20,9 +20,9 @@ const freeCards = [
     badge: "free",
   },
   {
-    title: "My Five Elements",
-    desc: "See how many of each element you carry",
-    href: "/my-five-elements",
+    title: "What type do you repel?",
+    desc: "Discover the energy pattern behind your toxic relationships",
+    href: "/repel-test",
     badge: "free",
   },
 ];

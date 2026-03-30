@@ -486,7 +486,7 @@ export function drawCompatibilityCard(canvas: HTMLCanvasElement, opts: Compatibi
 // ── Repel card ───────────────────────────────────────────────────────────────
 
 interface RepelDrawOptions {
-  typeName: string;
+  hookLine: string;
   tagline: string;
 }
 
@@ -532,25 +532,23 @@ export function drawRepelCard(canvas: HTMLCanvasElement, opts: RepelDrawOptions)
   ctx.fillText("US", cx, 170);
   ctx.fillText("NE", cx, 196);
 
-  // "You attract" label
-  ctx.fillStyle = "rgba(255,255,255,0.4)";
-  ctx.font = "400 15px system-ui,-apple-system,sans-serif";
-  ctx.letterSpacing = "0.12em";
-  ctx.fillText("YOU ATTRACT", cx, 430);
-  ctx.letterSpacing = "0";
-
-  // Type name
-  ctx.fillStyle = PURPLE;
-  const nameSize = opts.typeName.length > 14 ? 42 : 52;
-  ctx.font = `900 ${nameSize}px system-ui,-apple-system,sans-serif`;
-  ctx.fillText(opts.typeName, cx, 510);
+  // Hook line
+  ctx.fillStyle = "rgba(255,255,255,0.88)";
+  ctx.font = "italic 600 18px Georgia,serif";
+  const hookLines = wrapText(ctx, `"${opts.hookLine}"`, W * 0.78);
+  const hookLineH = 28;
+  const hookY = 430;
+  hookLines.forEach((line, i) => {
+    ctx.fillText(line, cx, hookY + i * hookLineH);
+  });
 
   // Divider line
+  const dividerY = hookY + hookLines.length * hookLineH + 24;
   ctx.strokeStyle = "rgba(192,132,252,0.2)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - 60, 570);
-  ctx.lineTo(cx + 60, 570);
+  ctx.moveTo(cx - 60, dividerY);
+  ctx.lineTo(cx + 60, dividerY);
   ctx.stroke();
 
   // Tagline
@@ -558,7 +556,7 @@ export function drawRepelCard(canvas: HTMLCanvasElement, opts: RepelDrawOptions)
   ctx.font = "italic 400 17px Georgia,serif";
   const lines = wrapText(ctx, opts.tagline, W * 0.72);
   const lineH = 26;
-  const tagY = 610;
+  const tagY = dividerY + 32;
   lines.forEach((line, i) => {
     ctx.fillText(line, cx, tagY + i * lineH);
   });

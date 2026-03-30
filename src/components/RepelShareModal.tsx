@@ -6,7 +6,7 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { drawRepelCard } from "@/lib/shareCanvas";
 
 interface RepelShareModalProps {
-  typeName: string;
+  hookLine: string;
   tagline: string;
   userEmail: string;
   resultUrl: string;
@@ -33,7 +33,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 type PendingState = "idle" | "pending" | "done";
 
 export default function RepelShareModal({
-  typeName, tagline, userEmail, resultUrl, shareText, onClose,
+  hookLine, tagline, userEmail, resultUrl, shareText, onClose,
 }: RepelShareModalProps) {
   const [couponCode, setCouponCode] = useState("");
   const [couponCopied, setCouponCopied] = useState(false);
@@ -61,7 +61,7 @@ export default function RepelShareModal({
 
   function buildCanvas() {
     const canvas = document.createElement("canvas");
-    drawRepelCard(canvas, { typeName, tagline });
+    drawRepelCard(canvas, { hookLine, tagline });
     return canvas;
   }
 
@@ -167,8 +167,7 @@ export default function RepelShareModal({
 
             {/* Content */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
-              <span style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>You attract</span>
-              <span style={{ fontSize: 26, fontWeight: 900, lineHeight: 1.05, color: cardAccent }}>{typeName}</span>
+              <p style={{ margin: 0, fontSize: 13, fontStyle: "italic", fontWeight: 600, color: "rgba(255,255,255,0.88)", maxWidth: "86%", lineHeight: 1.5 }}>&ldquo;{hookLine}&rdquo;</p>
               <div style={{ width: 48, height: 1, background: "rgba(192,132,252,0.25)", margin: "4px 0" }} />
               <p style={{ margin: 0, fontSize: 11, fontStyle: "italic", color: "rgba(255,255,255,0.5)", maxWidth: "82%", lineHeight: 1.55 }}>{tagline}</p>
             </div>

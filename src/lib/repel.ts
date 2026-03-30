@@ -67,8 +67,35 @@ export const REPEL_COPY: Record<string, string> = {
   "metal-water": "You're drawn to people who don't move — who hold their position while everything shifts around them, and whose consistency feels like a kind of loyalty. But something that never moves also never comes toward you, and eventually you realize you've done all the flowing while they've just stood there being consistent. What you need isn't someone who stays; you need someone who stays and also reaches.",
 };
 
+export const REPEL_HOOKS: Record<string, string> = {
+  "fire-wood":   "You fall for people who burn through everything they touch — including you.",
+  "water-fire":  "You fall for people who seem to understand you completely.",
+  "metal-earth": "You fall for people who always know exactly what they think.",
+  "wood-metal":  "You fall for people who are always in the middle of becoming something.",
+  "earth-water": "You fall for people who feel like solid ground.",
+  "fire-water":  "You fall for people who feel like a lit match.",
+  "water-earth": "You fall for people who seem calm on the surface.",
+  "metal-wood":  "You fall for people who just say the thing everyone else won't.",
+  "wood-fire":   "You fall for people who are always about to change your life.",
+  "earth-metal": "You fall for people who seem easy to be around.",
+  "fire-earth":  "You fall for people who make everything feel urgent and alive.",
+  "water-metal": "You fall for people who seem like they need nothing from anyone.",
+  "metal-fire":  "You fall for people who change the atmosphere just by walking in.",
+  "wood-water":  "You fall for people who hold space for everyone around them.",
+  "earth-fire":  "You fall for people who take a long time to let you in.",
+  "earth-wood":  "You fall for people who feel dependable in a way you've never quite had before.",
+  "wood-earth":  "You fall for people who seem like they don't need much.",
+  "fire-metal":  "You fall for people who arrive knowing exactly what they want.",
+  "water-wood":  "You fall for people who are warm and everywhere and hard to hold.",
+  "metal-water": "You fall for people who don't move no matter what's happening around them.",
+};
+
 export function getRepelCopy(key: string): string {
   return REPEL_COPY[key] ?? REPEL_COPY[Object.keys(REPEL_COPY).find(k => k.startsWith(key.split("-")[0] + "-"))!] ?? "";
+}
+
+export function getRepelHook(key: string): string {
+  return REPEL_HOOKS[key] ?? REPEL_HOOKS[Object.keys(REPEL_HOOKS).find(k => k.startsWith(key.split("-")[0] + "-"))!] ?? "";
 }
 
 export interface RepelResult {
