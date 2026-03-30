@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
+import ReactMarkdown from "react-markdown";
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
@@ -643,10 +644,10 @@ function ClaudeCard({ cardIndex, status, onRetry }: { cardIndex: number; status:
       )}
 
       {status.state === "done" && (
-        <div className="space-y-4">
-          {status.text.split(/\n\n+/).filter(Boolean).map((para, i) => (
-            <p key={i} className="text-sm text-text/80 leading-relaxed">{para}</p>
-          ))}
+        <div className="space-y-4 text-sm text-text/80 leading-relaxed prose prose-invert prose-sm max-w-none
+          prose-p:text-text/80 prose-p:leading-relaxed prose-p:my-0
+          prose-strong:text-text prose-strong:font-semibold">
+          <ReactMarkdown>{status.text}</ReactMarkdown>
         </div>
       )}
     </div>
